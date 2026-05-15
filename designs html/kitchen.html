@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<title>Kitchen · Screens</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="frames.css">
+<style>
+  .k-screen { flex:1; display:flex; flex-direction:column; background: var(--ink-900); color: var(--ink-0); overflow:hidden; }
+
+  /* KDS login (station) */
+  .k-login { flex:1; display:flex; background: var(--ink-900); color: var(--ink-0); }
+  .k-login .side { flex: 0 0 42%; padding: 48px; display:flex; flex-direction:column; border-right: 1px solid #1c1917; position: relative; overflow: hidden; }
+  .k-login .side::before { content:''; position:absolute; inset:0; background: radial-gradient(ellipse at 20% 80%, rgba(249,115,22,0.2), transparent 55%); }
+  .k-login .side > * { position: relative; z-index:1; }
+  .k-login .brand { display:flex; align-items:center; gap:10px; }
+  .k-login .brand .mark { width:32px; height:32px; border-radius:6px; background: var(--accent); color: var(--ink-900); display:flex; align-items:center; justify-content:center; font-family: var(--serif); font-weight:800; font-size:18px; font-style: italic; }
+  .k-login .brand .wm { font-family: var(--serif); font-weight:700; font-size:18px; }
+  .k-login .side h1 { margin: auto 0 0; font-family: var(--serif); font-weight:800; font-size:64px; line-height:0.95; letter-spacing:-0.025em; }
+  .k-login .side h1 em { font-style: italic; font-weight:500; color: var(--accent); display:block; }
+  .k-login .side .quote { margin-top: 18px; font-family: var(--serif); font-style: italic; font-size: 20px; color: rgba(255,255,255,0.7); line-height: 1.3; max-width: 380px; }
+  .k-login .side .meta { margin-top: 28px; font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,0.45); }
+
+  .k-login .main { flex:1; padding: 48px 56px; display:flex; flex-direction:column; }
+  .k-login .station-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 20px; }
+  .k-login .st-card { background: #1c1917; border: 1px solid #292524; border-radius: var(--r-lg); padding: 20px; display:flex; flex-direction:column; }
+  .k-login .st-card.on { border-color: var(--accent); background: linear-gradient(180deg, rgba(249,115,22,0.12), transparent); }
+  .k-login .st-card .num { font-family: var(--serif); font-weight:800; font-size:44px; line-height:1; color: var(--ink-0); letter-spacing:-0.02em; }
+  .k-login .st-card.on .num { color: var(--accent); }
+  .k-login .st-card .name { font-family: var(--serif); font-style: italic; font-weight:500; font-size:18px; margin-top: 6px; color: var(--ink-0); }
+  .k-login .st-card .meta { margin-top: 14px; font-family: var(--mono); font-size: 10px; color: rgba(255,255,255,0.5); display:flex; justify-content:space-between; }
+
+  .k-login .pin { margin-top: 32px; }
+  .k-login .pin-dots { display:flex; gap:10px; }
+  .k-login .pin-dots .d { width:20px; height:20px; border-radius:50%; border:1px solid rgba(255,255,255,0.3); }
+  .k-login .pin-dots .d.on { background: var(--accent); border-color: var(--accent); }
+  .k-login .keypad { margin-top: 20px; display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 320px; }
+  .k-login .keypad .k { padding: 18px 0; background:#1c1917; border: 1px solid #292524; border-radius: var(--r-md); text-align:center; font-family: var(--serif); font-weight:700; font-size:22px; }
+
+  /* KDS board */
+  .kds { flex:1; display:flex; flex-direction:column; background: var(--ink-900); overflow:hidden; }
+  .kds-head { padding: 14px 24px; display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #1c1917; }
+  .kds-head .l { display:flex; align-items:center; gap:14px; }
+  .kds-head .station { font-family: var(--serif); font-weight:700; font-size:18px; }
+  .kds-head .station em { font-style: italic; font-weight:500; color: var(--accent); }
+  .kds-head .clock { font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.6); }
+  .kds-head .stats { display:flex; gap: 22px; }
+  .kds-head .stat { text-align:right; }
+  .kds-head .stat .v { font-family: var(--serif); font-weight:800; font-size:22px; color: var(--ink-0); line-height:1; }
+  .kds-head .stat .v.hot { color: var(--accent); }
+  .kds-head .stat .l { font-family: var(--mono); font-size: 9px; color: rgba(255,255,255,0.5); text-transform:uppercase; letter-spacing: 0.12em; margin-top: 3px; }
+
+  .kds-body { flex:1; display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 10px; overflow: hidden; }
+  .lane { background: #0f0d0c; border: 1px solid #1c1917; border-radius: var(--r-md); display:flex; flex-direction:column; overflow: hidden; }
+  .lane-head { padding: 10px 14px; display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #1c1917; }
+  .lane-head .n { font-family: var(--mono); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: rgba(255,255,255,0.7); }
+  .lane-head .c { font-family: var(--serif); font-weight:800; font-size:18px; color: var(--ink-0); }
+  .lane.new .lane-head .n { color: var(--accent); }
+  .lane-body { flex:1; overflow:hidden; padding: 8px; display:flex; flex-direction:column; gap: 8px; }
+
+  .ticket { background: #1c1917; border: 1px solid #292524; border-radius: var(--r-md); padding: 10px 12px; color: var(--ink-0); }
+  .ticket.warn { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(249,115,22,0.3); }
+  .ticket.warn .t-head .time { color: var(--accent); animation: pulse-t 1.3s infinite; }
+  @keyframes pulse-t { 50% { opacity: 0.5; } }
+  .ticket .t-head { display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px; }
+  .ticket .t-head .tbl { font-family: var(--serif); font-weight:800; font-size:16px; }
+  .ticket .t-head .time { font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,0.7); }
+  .ticket .code { font-family: var(--mono); font-size: 9px; color: rgba(255,255,255,0.4); }
+  .ticket ul { list-style: none; padding: 0; margin: 6px 0 0; font-size: 11px; color: rgba(255,255,255,0.85); display:flex; flex-direction:column; gap: 3px; }
+  .ticket ul li { display:flex; justify-content:space-between; gap: 6px; }
+  .ticket ul li b { font-family: var(--mono); color: var(--accent); font-weight: 700; font-size: 10px; }
+  .ticket ul li .mod { font-size: 10px; color: rgba(255,255,255,0.5); font-style: italic; font-family: var(--serif); }
+  .ticket .t-foot { margin-top: 8px; display:flex; justify-content:space-between; align-items:center; }
+  .ticket .t-btn { font-family: var(--mono); font-size: 10px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 0; }
+
+  /* Offline */
+  .k-offline { flex:1; background: var(--ink-900); color: var(--ink-0); display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 48px; text-align: center; position: relative; overflow: hidden; }
+  .k-offline::before { content:''; position:absolute; inset:0; background: radial-gradient(ellipse at center, rgba(220,38,38,0.15), transparent 55%); }
+  .k-offline > * { position: relative; z-index:1; }
+  .k-offline .mark { width:96px; height:96px; border-radius:50%; background: rgba(220,38,38,0.15); border: 1px solid rgba(220,38,38,0.4); color: var(--bad); display:flex; align-items:center; justify-content:center; font-family: var(--serif); font-style: italic; font-weight:800; font-size:48px; }
+  .k-offline h1 { margin: 28px 0 8px; font-family: var(--serif); font-weight:800; font-size:52px; letter-spacing:-0.02em; line-height: 0.98; }
+  .k-offline h1 em { font-style: italic; font-weight:500; color: var(--bad); }
+  .k-offline p { margin: 0; font-size: 15px; color: rgba(255,255,255,0.6); max-width: 480px; line-height: 1.5; }
+  .k-offline .code { margin-top: 20px; font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,0.4); padding: 6px 12px; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; }
+  .k-offline .cached { margin-top: 32px; display:flex; gap: 20px; }
+  .k-offline .cached .c { border: 1px solid rgba(255,255,255,0.15); border-radius: var(--r-md); padding: 14px 20px; }
+  .k-offline .cached .c .v { font-family: var(--serif); font-weight:800; font-size:26px; color: var(--accent); }
+  .k-offline .cached .c .l { font-family: var(--mono); font-size:10px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; }
+  .k-offline .btn-retry { margin-top: 32px; background: var(--accent); color: var(--ink-900); padding: 14px 28px; border: 0; border-radius: var(--r-md); font-weight: 700; font-size: 14px; cursor: pointer; }
+</style>
+</head>
+<body class="canvas">
+  <div class="canvas-head">
+    <h1>Kitchen <em>screens</em></h1>
+    <div class="meta">3 screens · tablet<br>login → board → offline</div>
+  </div>
+
+  <div class="surface-grid">
+
+    <!-- 1. Station login -->
+    <div>
+      <div class="tablet">
+        <div class="tablet-screen">
+          <div class="k-screen">
+            <div class="k-login">
+              <div class="side">
+                <div class="brand"><div class="mark">R</div><div class="wm">Restaurant <em class="serif-it">OS</em></div></div>
+                <h1>Mise<br><em>en place.</em></h1>
+                <div class="quote">"Everything in its place, and a place for everything."</div>
+                <div class="meta">KDS · v4.2 · kitchen.beachside.local<br>station node — last sync 14s ago</div>
+              </div>
+              <div class="main">
+                <div class="eyebrow" style="color: var(--accent);">Staff detected · chef@beachside</div>
+                <h2 style="margin: 10px 0 0; font-family: var(--serif); font-weight:800; font-size:34px; letter-spacing:-0.015em; color: var(--ink-0);">Choose your <em class="serif-it" style="color: var(--accent);">station</em></h2>
+                <div class="station-grid">
+                  <div class="st-card">
+                    <div class="num">01</div>
+                    <div class="name">Cold line</div>
+                    <div class="meta"><span>salads · starters</span><span>4 active</span></div>
+                  </div>
+                  <div class="st-card on">
+                    <div class="num">02</div>
+                    <div class="name">Grill</div>
+                    <div class="meta"><span style="color: var(--accent);">yours · last 14m</span><span>7 hot</span></div>
+                  </div>
+                  <div class="st-card">
+                    <div class="num">03</div>
+                    <div class="name">Pasta</div>
+                    <div class="meta"><span>mains · sauce</span><span>3 active</span></div>
+                  </div>
+                  <div class="st-card">
+                    <div class="num">04</div>
+                    <div class="name">Pastry</div>
+                    <div class="meta"><span>dessert · bread</span><span>idle</span></div>
+                  </div>
+                  <div class="st-card">
+                    <div class="num">05</div>
+                    <div class="name">Expo</div>
+                    <div class="meta"><span>plating · pass</span><span>2 ready</span></div>
+                  </div>
+                  <div class="st-card" style="border-style: dashed; opacity:0.5;">
+                    <div class="num" style="color: rgba(255,255,255,0.3);">+</div>
+                    <div class="name" style="color: rgba(255,255,255,0.3);">All stations</div>
+                    <div class="meta"><span>expo view</span><span>18 total</span></div>
+                  </div>
+                </div>
+                <div class="pin">
+                  <div class="eyebrow" style="color: rgba(255,255,255,0.5);">Enter station PIN</div>
+                  <div class="pin-dots" style="margin-top: 10px;">
+                    <span class="d on"></span><span class="d on"></span><span class="d on"></span><span class="d on"></span><span class="d"></span><span class="d"></span>
+                  </div>
+                  <div class="keypad">
+                    <div class="k">1</div><div class="k">2</div><div class="k">3</div>
+                    <div class="k">4</div><div class="k">5</div><div class="k">6</div>
+                    <div class="k">7</div><div class="k">8</div><div class="k">9</div>
+                    <div class="k" style="color: rgba(255,255,255,0.4);">clear</div><div class="k">0</div><div class="k" style="background: var(--accent); color: var(--ink-900); border-color: var(--accent);">↵</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="screen-label"><span class="num">1</span><span class="title">Station login</span><span class="desc">6-digit PIN · station picker</span></div>
+    </div>
+
+    <!-- 2. KDS board live -->
+    <div>
+      <div class="tablet">
+        <div class="tablet-screen">
+          <div class="k-screen">
+            <div class="kds">
+              <div class="kds-head">
+                <div class="l">
+                  <div class="station">Grill · <em>02</em></div>
+                  <span class="chip chip-accent">● live</span>
+                  <div class="clock">9:41 PM · 18°C hood</div>
+                </div>
+                <div class="stats">
+                  <div class="stat"><div class="v">14</div><div class="l">open</div></div>
+                  <div class="stat"><div class="v hot">3</div><div class="l">delayed</div></div>
+                  <div class="stat"><div class="v">7:14</div><div class="l">avg / ticket</div></div>
+                  <div class="stat"><div class="v">96%</div><div class="l">on time</div></div>
+                </div>
+              </div>
+              <div class="kds-body">
+
+                <!-- NEW lane -->
+                <div class="lane new">
+                  <div class="lane-head"><span class="n">New</span><span class="c">4</span></div>
+                  <div class="lane-body">
+                    <div class="ticket">
+                      <div class="t-head"><span class="tbl">A14</span><span class="time">0:22</span></div>
+                      <div class="code">ORD-4821</div>
+                      <ul>
+                        <li><span>Cacio e pepe</span><b>×2</b></li>
+                        <li><span class="mod">+ extra pecorino</span></li>
+                        <li><span>Grilled salmon</span><b>×1</b></li>
+                        <li><span class="mod">asparagus · medium</span></li>
+                      </ul>
+                      <div class="t-foot"><span class="code">party of 3</span><span class="t-btn">ACK →</span></div>
+                    </div>
+                    <div class="ticket">
+                      <div class="t-head"><span class="tbl">P06</span><span class="time">0:41</span></div>
+                      <div class="code">ORD-4822</div>
+                      <ul>
+                        <li><span>Lamb chops</span><b>×1</b></li>
+                        <li><span>Ribeye 12oz</span><b>×1</b></li>
+                        <li><span class="mod">medium rare · bone</span></li>
+                      </ul>
+                      <div class="t-foot"><span class="code">party of 2</span><span class="t-btn">ACK →</span></div>
+                    </div>
+                    <div class="ticket">
+                      <div class="t-head"><span class="tbl">B03</span><span class="time">1:04</span></div>
+                      <div class="code">ORD-4823</div>
+                      <ul>
+                        <li><span>Burger · classic</span><b>×2</b></li>
+                        <li><span class="mod">one no onion</span></li>
+                      </ul>
+                      <div class="t-foot"><span class="code">bar seat</span><span class="t-btn">ACK →</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- COOKING lane -->
+                <div class="lane">
+                  <div class="lane-head"><span class="n">Cooking</span><span class="c">5</span></div>
+                  <div class="lane-body">
+                    <div class="ticket warn">
+                      <div class="t-head"><span class="tbl">A07</span><span class="time">8:47 late</span></div>
+                      <div class="code">ORD-4815</div>
+                      <ul>
+                        <li><span>Ribeye 16oz</span><b>×1</b></li>
+                        <li><span class="mod">medium well</span></li>
+                        <li><span>Lamb chops</span><b>×1</b></li>
+                      </ul>
+                      <div class="t-foot"><span class="code" style="color: var(--accent);">over SLA</span><span class="t-btn">READY →</span></div>
+                    </div>
+                    <div class="ticket">
+                      <div class="t-head"><span class="tbl">P11</span><span class="time">5:12</span></div>
+                      <div class="code">ORD-4817</div>
+                      <ul>
+                        <li><span>Grilled octopus</span><b>×1</b></li>
+                        <li><span>Branzino whole</span><b>×1</b></li>
+                      </ul>
+                      <div class="t-foot"><span class="code">party of 4</span><span class="t-btn">READY →</span></div>
+                    </div>
+                    <div class="ticket">
+                      <div class="t-head"><span class="tbl">A19</span><span class="time">3:30</span></div>
+                      <div class="code">ORD-4819</div>
+                      <ul>
+                        <li><span>Pork belly</span><b>×2</b></li>
+                        <li><span class="mod">extra crisp</span></li>
+                      </ul>
+                      <div class="t-foot"><span class="code">party of 2</span><span class="t-btn">READY →</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- READY lane -->
+                <div class="lane">
+                  <div class="lane-head"><span class="n">Ready · pass</span><span class="c">3</span></div>
+                  <div class="lane-body">
+                    <div class="ticket" style="border-color: var(--ok); background: rgba(22,163,74,0.08);">
+                      <div class="t-head"><span class="tbl">B05</span><span class="time" style="color: var(--ok);">ready 0:12</span></div>
+                      <div class="code">ORD-4812</div>
+                      <ul>
+                        <li><span>Chicken roulade</span><b>×2</b></li>
+                      </ul>
+                      <div class="t-foot"><span class="code">waiter: Liam</span><span class="t-btn" style="color: var(--ok);">EXPO ✓</span></div>
+                    </div>
+                    <div class="ticket" style="border-color: var(--ok); background: rgba(22,163,74,0.08);">
+                      <div class="t-head"><span class="tbl">P02</span><span class="time" style="color: var(--ok);">ready 0:48</span></div>
+                      <div class="code">ORD-4810</div>
+                      <ul>
+                        <li><span>Hangar steak</span><b>×1</b></li>
+                      </ul>
+                      <div class="t-foot"><span class="code">waiter: Mei</span><span class="t-btn" style="color: var(--ok);">EXPO ✓</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- DONE lane -->
+                <div class="lane">
+                  <div class="lane-head"><span class="n">Served · 2h</span><span class="c">27</span></div>
+                  <div class="lane-body">
+                    <div class="ticket" style="opacity: 0.5;">
+                      <div class="t-head"><span class="tbl">A03</span><span class="time">7:42 min</span></div>
+                      <div class="code">ORD-4801 · served 8:22 PM</div>
+                      <ul>
+                        <li><span>Ribeye, branzino, burger ×2</span></li>
+                      </ul>
+                    </div>
+                    <div class="ticket" style="opacity: 0.5;">
+                      <div class="t-head"><span class="tbl">B11</span><span class="time">5:18 min</span></div>
+                      <div class="code">ORD-4802 · served 8:28 PM</div>
+                      <ul>
+                        <li><span>Salmon ×2, lamb ×1</span></li>
+                      </ul>
+                    </div>
+                    <div class="ticket" style="opacity: 0.4;">
+                      <div class="t-head"><span class="tbl">P09</span><span class="time">6:02 min</span></div>
+                      <div class="code">ORD-4803 · served 8:35 PM</div>
+                      <ul>
+                        <li><span>Hangar ×2, octopus ×1</span></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="screen-label"><span class="num">2</span><span class="title">KDS board · live</span><span class="desc">4 lanes · SLA pulse</span></div>
+    </div>
+
+    <!-- 3. Offline -->
+    <div>
+      <div class="tablet">
+        <div class="tablet-screen">
+          <div class="k-screen">
+            <div class="k-offline">
+              <div class="mark">!</div>
+              <h1>Signal<em>dropped.</em></h1>
+              <p>The station lost contact with the main bus. Tickets already on-screen are safe; new orders are queuing at the expediter.</p>
+              <div class="code">NET · kds_bus_disconnected · last_ack 12s ago</div>
+              <div class="cached">
+                <div class="c"><div class="v">14</div><div class="l">cached tickets</div></div>
+                <div class="c"><div class="v">3</div><div class="l">queued updates</div></div>
+                <div class="c"><div class="v">0:47</div><div class="l">offline for</div></div>
+              </div>
+              <button class="btn-retry">Retry connection →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="screen-label"><span class="num">3</span><span class="title">Offline fallback</span><span class="desc">graceful degradation</span></div>
+    </div>
+
+  </div>
+</body></html>

@@ -1,0 +1,5 @@
+ALTER TABLE "Branch"
+  ADD COLUMN "latitude" DECIMAL(9,6),
+  ADD COLUMN "longitude" DECIMAL(9,6),
+  ADD COLUMN "geofenceRadiusM" INTEGER NOT NULL DEFAULT 100,
+  ADD COLUMN "geofenceEnabled" BOOLEAN NOT NULL DEFAULT false;

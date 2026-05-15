@@ -1,0 +1,59 @@
+# ─────────────────────────────────────────────────────
+# Smart Restaurant OS — Prometheus Alert Rules
+# ─────────────────────────────────────────────────────
+# Loaded by Prometheus when alertmanager is configured.
+# See docs/monitoring.md for setup instructions.
+
+groups:
+  - name: service-health
+    rules:
+      # API unreachable for 2 minutes
+      - alert: ApiDown
+        expr: up{job="api-health"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API service is down"
+          description: "The API health endpoint has been unreachable for 2 minutes."
+
+      # Nginx unreachable for 2 minutes
+      - alert: NginxDown
+        expr: up{job="nginx-health"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Nginx reverse proxy is down"
+          description: "The Nginx health endpoint has been unreachable for 2 minutes."
+
+      # AI service unreachable for 10 minutes (non-critical)
+      - alert: AiServiceDown
+        expr: up{job="ai-health"} == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AI service is down"
+          description: "The AI health endpoint has been unreachable for 10 minutes. Core features still work."
+
+      # Prometheus scrape failures
+      - alert: HighScrapeFailureRate
+        expr: rate(prometheus_target_scrapes_exceeded_sample_limit_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus scrape failures detected"
+
+  - name: system-resources
+    rules:
+      # Prometheus storage filling up (if using local storage)
+      - alert: PrometheusStorageHigh
+        expr: (prometheus_tsdb_storage_blocks_bytes / 1e9) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus storage exceeds 5 GB"
+          description: "Consider increasing retention or adding remote storage."

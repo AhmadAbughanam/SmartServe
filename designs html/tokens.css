@@ -1,0 +1,146 @@
+/* ============================================================
+   Restaurant OS v2 — Minimal Mono + Orange
+   Philosophy: near-black/white, one accent, editorial typography
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;0,900;1,500;1,700&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* Ink ladder */
+  --ink-0: #ffffff;
+  --ink-50: #fafaf9;
+  --ink-100: #f5f5f4;
+  --ink-200: #e7e5e4;
+  --ink-300: #d6d3d1;
+  --ink-400: #a8a29e;
+  --ink-500: #78716c;
+  --ink-600: #57534e;
+  --ink-700: #292524;
+  --ink-800: #1c1917;
+  --ink-900: #0c0a09;
+
+  /* Single accent */
+  --accent: #f97316;
+  --accent-ink: #9a3412;
+  --accent-soft: #fff7ed;
+  --accent-edge: #fed7aa;
+
+  /* Semantic (muted — minimal uses these sparingly) */
+  --ok: #16a34a;
+  --ok-soft: #f0fdf4;
+  --warn: #ca8a04;
+  --warn-soft: #fefce8;
+  --bad: #dc2626;
+  --bad-soft: #fef2f2;
+
+  /* Type */
+  --serif: 'Playfair Display', 'Times New Roman', serif;
+  --sans: 'Inter', -apple-system, system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Rhythm */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  --line: 1px solid var(--ink-200);
+  --line-hard: 1px solid var(--ink-900);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--ink-100);
+  color: var(--ink-900);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'ss01','cv11';
+}
+
+/* ─── Type primitives ─── */
+.serif { font-family: var(--serif); font-weight: 700; letter-spacing: -0.01em; }
+.serif-it { font-family: var(--serif); font-style: italic; font-weight: 500; }
+.mono { font-family: var(--mono); }
+.micro { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-500); }
+.eyebrow { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em; color: var(--ink-900); }
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* ─── Surfaces ─── */
+.card { background: var(--ink-0); border: var(--line); border-radius: var(--r-lg); }
+.card-flat { background: var(--ink-0); border: var(--line); }
+.hr { height: 1px; background: var(--ink-200); border: 0; margin: 0; }
+
+/* ─── Buttons ─── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--sans); font-weight: 600; font-size: 14px;
+  padding: 12px 18px; border-radius: var(--r-md); border: 1px solid transparent;
+  cursor: pointer; transition: all .15s;
+}
+.btn-primary { background: var(--ink-900); color: var(--ink-0); }
+.btn-primary:hover { background: var(--accent); }
+.btn-accent { background: var(--accent); color: var(--ink-0); }
+.btn-ghost { background: transparent; color: var(--ink-900); border-color: var(--ink-300); }
+.btn-link { background: transparent; color: var(--ink-900); border: 0; text-decoration: underline; text-underline-offset: 3px; }
+
+.btn-lg { padding: 16px 22px; font-size: 15px; }
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--ink-100); }
+::-webkit-scrollbar-thumb { background: var(--ink-300); border-radius: 999px; border: 2px solid var(--ink-100); }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-400); }
+
+/* ─── Photo placeholders (no real imagery) ─── */
+.photo {
+  display: flex; align-items: flex-end; justify-content: flex-start;
+  padding: 10px; font-family: var(--serif); font-style: italic; font-weight: 500;
+  color: rgba(255,255,255,0.95); text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  font-size: 13px; line-height: 1.1;
+  background: linear-gradient(135deg, #57534e, #292524);
+  position: relative; overflow: hidden;
+}
+.photo::after {
+  content: ''; position: absolute; inset: 0;
+  background:
+    radial-gradient(circle at 25% 30%, rgba(255,255,255,0.15), transparent 50%),
+    radial-gradient(circle at 75% 70%, rgba(0,0,0,0.25), transparent 50%);
+  pointer-events: none;
+}
+.photo > * { position: relative; z-index: 1; }
+
+.photo.p1 { background: linear-gradient(135deg, #78350f, #431407); }
+.photo.p2 { background: linear-gradient(135deg, #166534, #052e16); }
+.photo.p3 { background: linear-gradient(135deg, #9a3412, #431407); }
+.photo.p4 { background: linear-gradient(135deg, #451a03, #1c1917); }
+.photo.p5 { background: linear-gradient(135deg, #713f12, #422006); }
+.photo.p6 { background: linear-gradient(135deg, #4c1d95, #2e1065); }
+.photo.p7 { background: linear-gradient(135deg, #7c2d12, #431407); }
+.photo.p8 { background: linear-gradient(135deg, #14532d, #052e16); }
+.photo.p9 { background: linear-gradient(135deg, #78716c, #292524); }
+
+/* ─── Chip / tag ─── */
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 4px 8px; border-radius: 999px;
+  background: var(--ink-100); color: var(--ink-700); border: 1px solid var(--ink-200);
+}
+.chip-accent { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--accent-edge); }
+.chip-ok { background: var(--ok-soft); color: var(--ok); border-color: #bbf7d0; }
+.chip-warn { background: var(--warn-soft); color: var(--warn); border-color: #fde68a; }
+.chip-bad { background: var(--bad-soft); color: var(--bad); border-color: #fecaca; }
+.chip-ink { background: var(--ink-900); color: var(--ink-0); border-color: var(--ink-900); }
+
+/* ─── Dot ─── */
+.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ink-400); }
+.dot.on { background: var(--accent); }
+.dot.ok { background: var(--ok); }
+.dot.bad { background: var(--bad); }
+
+/* Pulse */
+@keyframes pulse-dot { 0%,100% { box-shadow: 0 0 0 0 rgba(249,115,22,0.6); } 50% { box-shadow: 0 0 0 6px rgba(249,115,22,0); } }
+.dot.pulse { animation: pulse-dot 1.6s infinite; }

@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    name: Verify
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: smart_restaurant_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d smart_restaurant_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+      API_PORT: 4000
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/smart_restaurant_ci?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci_jwt_secret_please_change_for_real_deployments_1234567890
+      AI_SERVICE_URL: http://localhost:8000
+      PAYMENT_PROVIDER: mock
+      PAYMENT_WEBHOOK_SECRET: ci-webhook-secret
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:4000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Prisma schema
+        run: npm run prisma:validate
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
+      - name: Apply database migrations
+        run: npx prisma migrate deploy --schema apps/api/prisma/schema.prisma
+
+      - name: Typecheck all workspaces
+        run: npm run typecheck
+
+      - name: Run critical backend tests
+        run: npm run test:critical
+
+      - name: Build web
+        run: npm run build:web
+
+      - name: Build API
+        run: npm run build:api
+
+      # End-to-end smoke requires starting the API/web servers and seeded demo data.
+      # Run locally after deployment: npm run smoke:health and npm run smoke.

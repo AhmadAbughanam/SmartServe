@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<title>Waiter · Screens</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="frames.css">
+<style>
+  .w { flex:1; display:flex; flex-direction:column; background: var(--ink-50); overflow:hidden; }
+  .w-top { padding: 12px 24px; background: var(--ink-0); border-bottom: 1px solid var(--ink-200); display:flex; align-items:center; gap: 18px; }
+  .w-top .brand { display:flex; align-items:center; gap:8px; }
+  .w-top .brand .mark { width: 26px; height: 26px; border-radius: 5px; background: var(--ink-900); color: var(--ink-0); display:flex; align-items:center; justify-content:center; font-family: var(--serif); font-weight:800; font-size:14px; font-style: italic; }
+  .w-top .brand .wm { font-family: var(--serif); font-weight:700; font-size:14px; }
+  .w-top .sec { font-family: var(--mono); font-size: 11px; color: var(--ink-500); }
+  .w-top .sec b { color: var(--ink-900); }
+  .w-top .tabs { display:flex; gap: 4px; margin-left: auto; }
+  .w-top .tab { padding: 6px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--ink-600); }
+  .w-top .tab.on { background: var(--ink-900); color: var(--ink-0); }
+  .w-top .who { display:flex; align-items:center; gap: 8px; font-size: 12px; }
+  .w-top .who .av { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #f97316, #9a3412); color: var(--ink-0); display:flex; align-items:center; justify-content:center; font-family: var(--serif); font-weight:700; font-size:13px; }
+
+  .w-body { flex:1; display:grid; grid-template-columns: 380px 1fr; gap: 0; overflow:hidden; }
+  .w-queue { background: var(--ink-0); border-right: 1px solid var(--ink-200); overflow: hidden; display:flex; flex-direction:column; }
+  .w-queue-head { padding: 18px 22px 12px; display:flex; justify-content:space-between; align-items:baseline; }
+  .w-queue-head h2 { margin: 0; font-family: var(--serif); font-weight:800; font-size:24px; letter-spacing:-0.015em; }
+  .w-queue-head h2 em { font-style: italic; font-weight:500; color: var(--accent); }
+  .w-queue-head .n { font-family: var(--mono); font-size: 11px; color: var(--ink-500); }
+  .w-queue-body { flex:1; overflow-y:auto; padding: 0 14px 20px; }
+
+  .task { padding: 12px 12px; display:flex; gap: 12px; border-radius: var(--r-md); border: 1px solid transparent; margin-bottom: 6px; }
+  .task.urgent { background: var(--accent-soft); border-color: var(--accent-edge); }
+  .task:hover { background: var(--ink-100); }
+  .task .dot-wrap { flex-shrink: 0; padding-top: 4px; }
+  .task .m { flex: 1; min-width: 0; }
+  .task .m .tbl { font-family: var(--serif); font-weight:700; font-size: 15px; color: var(--ink-900); }
+  .task .m .what { font-size: 12px; color: var(--ink-700); line-height: 1.4; margin-top: 2px; }
+  .task .m .t { margin-top: 6px; display:flex; gap: 8px; align-items:center; }
+  .task .m .t .code { font-family: var(--mono); font-size: 10px; color: var(--ink-500); }
+
+  /* Floor */
+  .w-floor { overflow: hidden; padding: 20px 24px; display:flex; flex-direction:column; background: var(--ink-50); }
+  .w-floor-head { display:flex; justify-content:space-between; align-items: baseline; }
+  .w-floor-head h2 { margin: 0; font-family: var(--serif); font-weight:800; font-size:28px; letter-spacing:-0.015em; }
+  .w-floor-head h2 em { font-style: italic; font-weight:500; color: var(--accent); }
+  .w-floor-legend { display:flex; gap: 14px; font-family: var(--mono); font-size: 10px; color: var(--ink-500); }
+  .w-floor-legend .le { display:flex; align-items:center; gap: 5px; }
+
+  .map { flex:1; margin-top: 18px; background: var(--ink-0); border: 1px solid var(--ink-200); border-radius: var(--r-lg); padding: 22px; position: relative; }
+  .zone { position: absolute; border: 1px dashed var(--ink-300); border-radius: var(--r-md); padding: 10px; }
+  .zone .zl { font-family: var(--mono); font-size: 10px; color: var(--ink-500); text-transform: uppercase; letter-spacing: 0.12em; position: absolute; top: -7px; left: 10px; background: var(--ink-0); padding: 0 6px; }
+  .table-dot { position: absolute; width: 52px; height: 52px; border-radius: 50%; background: var(--ink-0); border: 1px solid var(--ink-300); display:flex; flex-direction:column; align-items:center; justify-content:center; font-family: var(--serif); font-weight: 700; font-size: 15px; color: var(--ink-700); cursor: pointer; }
+  .table-dot .num { line-height: 1; }
+  .table-dot .st { font-family: var(--mono); font-size: 8px; color: var(--ink-500); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 1px; }
+  .table-dot.open { border-color: var(--ink-900); background: var(--ink-900); color: var(--ink-0); }
+  .table-dot.open .st { color: rgba(255,255,255,0.6); }
+  .table-dot.urgent { border-color: var(--accent); background: var(--accent); color: var(--ink-900); box-shadow: 0 0 0 4px rgba(249,115,22,0.18); }
+  .table-dot.urgent .st { color: var(--accent-ink); }
+  .table-dot.paid { opacity: 0.55; border-style: dashed; }
+
+  /* Session detail */
+  .w-session { flex:1; display:flex; flex-direction:column; }
+  .ws-head { padding: 20px 28px; background: var(--ink-0); border-bottom: 1px solid var(--ink-200); display:flex; justify-content:space-between; align-items:center; }
+  .ws-head .l h1 { margin: 0; font-family: var(--serif); font-weight:800; font-size: 32px; letter-spacing:-0.02em; }
+  .ws-head .l h1 em { font-style: italic; font-weight: 500; color: var(--accent); }
+  .ws-head .l .meta { margin-top: 4px; font-family: var(--mono); font-size: 11px; color: var(--ink-500); }
+  .ws-head .r { display:flex; gap: 8px; }
+
+  .ws-body { flex:1; overflow:hidden; padding: 22px 28px; display:grid; grid-template-columns: 1fr 360px; gap: 22px; }
+  .ws-col { overflow:hidden; display:flex; flex-direction:column; gap: 14px; }
+
+  .rd { background: var(--ink-0); border: 1px solid var(--ink-200); border-radius: var(--r-lg); padding: 14px 18px; }
+  .rd-head { display:flex; justify-content:space-between; align-items:center; }
+  .rd-head .n { font-family: var(--serif); font-weight:700; font-size: 16px; }
+  .rd-head .c { font-family: var(--mono); font-size: 10px; color: var(--ink-500); margin-top: 2px; }
+  .rd-items { margin-top: 10px; }
+  .rd-items .ri { display:flex; justify-content:space-between; padding: 6px 0; font-size: 13px; border-top: 1px dashed var(--ink-200); }
+  .rd-items .ri:first-child { border-top: 0; }
+  .rd-items .ri b { font-family: var(--serif); font-weight:700; font-size: 13px; }
+  .rd-items .ri .v { font-family: var(--mono); font-weight:600; color: var(--ink-900); }
+  .rd-items .mod { font-size: 11px; color: var(--ink-500); font-style: italic; font-family: var(--serif); padding: 2px 0 4px 0; border-top: 0; }
+
+  .running-bill { background: var(--ink-900); color: var(--ink-0); padding: 22px; border-radius: var(--r-lg); }
+  .running-bill .t { font-family: var(--mono); font-size: 10px; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.12em; }
+  .running-bill h2 { margin: 4px 0 16px; font-family: var(--serif); font-weight:800; font-size: 44px; color: var(--accent); letter-spacing:-0.02em; line-height:1; }
+  .running-bill .row { display:flex; justify-content:space-between; padding: 6px 0; font-size: 12px; color: rgba(255,255,255,0.75); border-top: 1px solid rgba(255,255,255,0.08); }
+  .running-bill .row.grand { margin-top: 8px; padding-top: 10px; font-size: 14px; color: var(--ink-0); font-weight: 700; }
+  .running-bill .actions { margin-top: 18px; display:flex; flex-direction:column; gap: 8px; }
+  .running-bill .btn-req { background: var(--accent); color: var(--ink-900); border: 0; padding: 14px; border-radius: var(--r-md); font-weight:700; font-size: 14px; }
+  .running-bill .btn-po { background: transparent; color: var(--ink-0); border: 1px solid rgba(255,255,255,0.2); padding: 12px; border-radius: var(--r-md); font-size: 12px; }
+
+  /* Login */
+  .wl { flex:1; display:grid; grid-template-columns: 1fr 1fr; background: var(--ink-0); }
+  .wl-vis { background: var(--ink-900); color: var(--ink-0); padding: 48px; display:flex; flex-direction:column; position: relative; overflow: hidden; }
+  .wl-vis::before { content:''; position:absolute; inset: 0; background: radial-gradient(ellipse at 80% 20%, rgba(249,115,22,0.18), transparent 55%); }
+  .wl-vis > * { position: relative; z-index: 1; }
+  .wl-vis .brand { display:flex; align-items:center; gap:10px; }
+  .wl-vis .brand .mark { width:32px; height:32px; border-radius:6px; background: var(--accent); color: var(--ink-900); display:flex; align-items:center; justify-content:center; font-family: var(--serif); font-weight:800; font-size:18px; font-style: italic; }
+  .wl-vis .brand .wm { font-family: var(--serif); font-weight:700; font-size:18px; }
+  .wl-vis h1 { margin: auto 0 0; font-family: var(--serif); font-weight:800; font-size: 68px; line-height: 0.94; letter-spacing:-0.025em; }
+  .wl-vis h1 em { font-style: italic; font-weight: 500; color: var(--accent); display: block; }
+  .wl-vis .sub { margin-top: 20px; font-family: var(--serif); font-style: italic; font-size: 20px; color: rgba(255,255,255,0.7); max-width: 380px; line-height:1.3; }
+
+  .wl-form { padding: 56px 64px; display:flex; flex-direction:column; justify-content:center; }
+  .wl-form .eyebrow { color: var(--accent); }
+  .wl-form h2 { margin: 12px 0 10px; font-family: var(--serif); font-weight:800; font-size: 38px; letter-spacing:-0.02em; line-height:1; }
+  .wl-form h2 em { font-style: italic; font-weight: 500; color: var(--accent); }
+  .wl-form .p { margin: 0 0 28px; font-size: 14px; color: var(--ink-500); max-width: 380px; line-height: 1.5; }
+  .wl-form .sec-title { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-500); margin: 24px 0 10px; }
+  .wl-form .sec-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 380px; }
+  .wl-form .sec-card { padding: 14px 12px; border: 1px solid var(--ink-200); border-radius: var(--r-md); text-align: left; }
+  .wl-form .sec-card.on { border-color: var(--ink-900); background: var(--ink-50); }
+  .wl-form .sec-card .t { font-family: var(--serif); font-weight: 700; font-size: 15px; }
+  .wl-form .sec-card .d { font-family: var(--mono); font-size: 10px; color: var(--ink-500); margin-top: 4px; }
+  .wl-form .sec-card.on .d { color: var(--accent-ink); }
+  .wl-form .cta { margin-top: 28px; max-width: 380px; display:flex; flex-direction:column; gap: 8px; }
+
+  /* Attendance */
+  .w-att { flex:1; display:flex; flex-direction:column; background: var(--ink-50); }
+  .w-att-head { padding: 22px 28px; background: var(--ink-0); border-bottom: 1px solid var(--ink-200); }
+  .w-att-head h1 { margin: 0; font-family: var(--serif); font-weight:800; font-size: 32px; letter-spacing:-0.02em; }
+  .w-att-head h1 em { font-style: italic; font-weight:500; color: var(--accent); }
+  .w-att-head .meta { margin-top: 4px; font-family: var(--mono); font-size: 11px; color: var(--ink-500); }
+  .w-att-body { flex:1; padding: 22px 28px; display:grid; grid-template-columns: 2fr 1fr; gap: 22px; overflow:hidden; }
+
+  .shift-card { background: var(--ink-0); border: 1px solid var(--ink-200); border-radius: var(--r-lg); padding: 22px; }
+  .shift-hero { display:flex; align-items: center; gap: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--ink-200); }
+  .shift-hero .big { font-family: var(--serif); font-weight: 800; font-size: 68px; letter-spacing: -0.02em; line-height: 1; color: var(--accent); }
+  .shift-hero .meta .t { font-family: var(--serif); font-weight: 700; font-size: 18px; }
+  .shift-hero .meta .s { font-family: var(--mono); font-size: 11px; color: var(--ink-500); margin-top: 4px; }
+
+  .tip-grid { margin-top: 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .tip-stat { padding: 14px 0; }
+  .tip-stat .v { font-family: var(--serif); font-weight: 800; font-size: 28px; letter-spacing: -0.015em; line-height: 1; }
+  .tip-stat .v em { font-style: italic; font-weight: 500; color: var(--accent); }
+  .tip-stat .l { font-family: var(--mono); font-size: 10px; color: var(--ink-500); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 5px; }
+
+  .roster { background: var(--ink-0); border: 1px solid var(--ink-200); border-radius: var(--r-lg); padding: 18px; }
+  .roster h3 { margin: 0 0 14px; font-family: var(--serif); font-weight:700; font-size: 18px; }
+  .roster .r-row { display:flex; align-items:center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--ink-100); font-size: 13px; }
+  .roster .r-row:first-of-type { border-top: 0; }
+  .roster .r-row .av { width: 30px; height: 30px; border-radius: 50%; background: var(--ink-100); color: var(--ink-700); display:flex; align-items:center; justify-content:center; font-family: var(--serif); font-weight:700; font-size: 13px; }
+  .roster .r-row .n { flex: 1; font-family: var(--serif); font-weight:600; }
+  .roster .r-row .s { font-family: var(--mono); font-size: 10px; color: var(--ink-500); }
+  .roster .r-row.in .s { color: var(--ok); }
+</style>
+</head>
+<body class="canvas">
+  <div class="canvas-head">
+    <h1>Waiter <em>screens</em></h1>
+    <div class="meta">4 screens · tablet<br>login · dashboard · session · attendance</div>
+  </div>
+
+  <div class="surface-grid">
+
+    <!-- 1. Login / section picker -->
+    <div>
+      <div class="tablet">
+        <div class="tablet-screen">
+          <div class="w">
+            <div class="wl">
+              <div class="wl-vis">
+                <div class="brand"><div class="mark">R</div><div class="wm">Restaurant <em class="serif-it">OS</em></div></div>
+                <h1>Mind the<br><em>room.</em></h1>
+                <div class="sub">"Your tables, your tips, your timing — all of it, right here."</div>
+              </div>
+              <div class="wl-form">
+                <div class="eyebrow">Staff detected · liam@beachside</div>
+                <h2>Pick your<em>section.</em></h2>
+                <p class="p">You're on tonight's patio rotation. Choose where you're working — the assignment is kept until clock-out.</p>
+                <div class="sec-title">Sections · 7:00 PM shift</div>
+                <div class="sec-grid">
+                  <div class="sec-card"><div class="t">Patio · A</div><div class="d">12 tables · idle</div></div>
+                  <div class="sec-card on"><div class="t">Patio · B</div><div class="d">14 tables · yours</div></div>
+                  <div class="sec-card"><div class="t">Dining · C</div><div class="d">10 tables · Mei</div></div>
+                  <div class="sec-card"><div class="t">Bar · D</div><div class="d">6 tables · Jun</div></div>
+                  <div class="sec-card"><div class="t">Private · PR</div><div class="d">2 rooms · closed</div></div>
+                  <div class="sec-card"><div class="t">Pass</div><div class="d">expediter mode</div></div>
+                </div>
+                <div class="cta">
+                  <button class="btn btn-primary btn-lg">Clock in · start shift</button>
+                  <button class="btn btn-ghost">Swap sections with a colleague</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="screen-label"><span class="num">1</span><span class="title">Login · section pick</span><span class="desc">assignment + clock-in</span></div>
+    </div>
+
+    <!-- 2. Dashboard -->
+    <div>
+      <div class="tablet">
+        <div class="tablet-screen">
+          <div class="w">
+            <div class="w-top">
+              <div class="brand"><div class="mark">R</div><div class="wm">Waiter</div></div>
+              <div class="sec">Patio · <b>B</b> · 14 tables · 6 open</div>
+              <div class="tabs">
+                <div class="tab on">Floor</div>
+                <div class="tab">Orders</div>
+                <div class="tab">Bills</div>
+                <div class="tab">Messages · 2</div>
+              </div>
+              <div class="who"><span>Liam · 3h 12m</span><div class="av">L</div></div>
+            </div>
+            <div class="w-body">
+
+              <div class="w-queue">
+                <div class="w-queue-head"><h2>Action <em>queue</em></h2><span class="n">4 urgent</span></div>
+                <div class="w-queue-body">
+                  <div class="task urgent">
+                    <div class="dot-wrap"><span class="dot pulse" style="background: var(--accent);"></span></div>
+                    <div class="m">
+                      <div class="tbl">Table A14 · party 3</div>
+                      <div class="what">Round 1 ready at pass · grab cacio ×2, salmon, burrata</div>
+                      <div class="t"><span class="code">EXP · 0:22</span><span class="chip chip-accent" style="padding:2px 6px;">pass</span></div>
+                    </div>
+                  </div>
+                  <div class="task urgent">
+                    <div class="dot-wrap"><span class="dot" style="background: var(--accent);"></span></div>
+                    <div class="m">
+                      <div class="tbl">Table A07 · party 2</div>
+                      <div class="what">Called for water · 2m ago</div>
+                      <div class="t"><span class="code">NEED · h2o</span></div>
+                    </div>
+                  </div>
+                  <div class="task">
+                    <div class="dot-wrap"><span class="dot ok"></span></div>
+                    <div class="m">
+                      <div class="tbl">Table B03 · party 4</div>
+                      <div class="what">New order placed — kitchen ack'd</div>
+                      <div class="t"><span class="code">ORD-4823 · $82.40</span></div>
+                    </div>
+                  </div>
+                  <div class="task">
+                    <div class="dot-wrap"><span class="dot"></span></div>
+                    <div class="m">
+                      <div class="tbl">Table P11 · party 4</div>
+                      <div class="what">Requested bill · $214.80</div>
+                      <div class="t"><span class="code">BILL · split 2</span></div>
+                    </div>
+                  </div>
+                  <div class="task">
+                    <div class="dot-wrap"><span class="dot"></span></div>
+                    <div class="m">
+                      <div class="tbl">Table A19 · party 2</div>
+                      <div class="what">Cutlery request</div>
+                      <div class="t"><span class="code">NEED · cutlery</span></div>
+                    </div>
+                  </div>
+                  <div class="task">
+                    <div class="dot-wrap"><span class="dot ok"></span></div>
+                    <div class="m">
+                      <div class="tbl">Table B05 · party 2</div>
+                      <div class="what">Chicken roulade ×2 ready · expo</div>
+                      <div class="t"><span class="code">EXP · 0:12</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="w-floor">
+                <div class="w-floor-head">
+                  <h2>Floor <em>map</em></h2>
+                  <div class="w-floor-legend">
+                    <div class="le"><span class="dot" style="background: var(--ink-300);"></span>idle</div>
+                    <div class="le"><span class="dot" style="background: var(--ink-900);"></span>open</div>
+                    <div class="le"><span class="dot on"></span>urgent</div>
+                    <div class="le"><span class="dot" style="background: var(--ok);"></span>paid</div>
+                  </div>
+                </div>
+                <div class="map">
+                  <div class="zone" style="top: 18px; left: 18px; width: 380px; height: 280px;">
+                    <div class="zl">Patio · front</div>
+                    <div class="table-dot urgent" style="top: 40px; left: 30px;"><span class="num">A14</span><span class="st">0:22</span></div>
+                    <div class="table-dot open" style="top: 40px; left: 130px;"><span class="num">A07</span><span class="st">2m</span></div>
+                    <div class="table-dot" style="top: 40px; left: 230px;"><span class="num">A01</span><span class="st">free</span></div>
+                    <div class="table-dot" style="top: 40px; left: 310px;"><span class="num">A02</span><span class="st">free</span></div>
+                    <div class="table-dot open" style="top: 150px; left: 30px;"><span class="num">A19</span><span class="st">need</span></div>
+                    <div class="table-dot" style="top: 150px; left: 130px;"><span class="num">A11</span><span class="st">free</span></div>
+                    <div class="table-dot paid" style="top: 150px; left: 230px;"><span class="num">A05</span><span class="st">paid</span></div>
+                    <div class="table-dot paid" style="top: 150px; left: 310px;"><span class="num">A03</span><span class="st">paid</span></div>
+                  </div>
+                  <div class="zone" style="top: 18px; right: 18px; width: 260px; height: 280px;">
+                    <div class="zl">Patio · back</div>
+                    <div class="table-dot open" style="top: 40px; left: 30px;"><span class="num">B03</span><span class="st">hot</span></div>
+                    <div class="table-dot open" style="top: 40px; left: 130px;"><span class="num">B05</span><span class="st">ready</span></div>
+                    <div class="table-dot" style="top: 150px; left: 30px;"><span class="num">B08</span><span class="st">free</span></div>
+                    <div class="table-dot" style="top: 150px; left: 130px;"><span class="num">B11</span><span class="st">free</span></div>
+                  </div>
+                  <div class="zone" style="bottom: 18px; left: 18px; right: 18px; height: 180px;">
+                    <div class="zl">Private · PR</div>
+                    <div class="table-dot open" style="top: 40px; left: 30px; width: 72px; height: 72px;"><span class="num">P11</span><span class="st">bill</span></div>
+                    <div class="table-dot paid" style="top: 40px; left: 140px; width: 72px; height: 72px;"><span class="num">P06</span><span class="st">new</span></div>
+                    <div class="table-dot" style="top: 40px; left: 250px; width: 72px; height: 72px;"><span class="num">P02</span><span class="st">free</span></div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="screen-label"><span class="num">2</span><span class="title">Dashboard</span><span class="desc">action queue + floor</span></div>
+    </div>
+
+    <!-- 3. Session detail -->
+    <div>
+      <div class="tablet">
+        <div class="tablet-screen">
+          <div class="w">
+            <div class="w-top">
+              <div class="brand"><div class="mark">R</div><div class="wm">Waiter</div></div>
+              <div class="sec">Back to <b>floor</b> · Table <b>A14</b> · party 3</div>
+              <div class="tabs">
+                <div class="tab on">Session</div>
+                <div class="tab">Rounds · 1</div>
+                <div class="tab">Notes</div>
+              </div>
+              <div class="who"><span>Liam · 3h 12m</span><div class="av">L</div></div>
+            </div>
+            <div class="w-session">
+              <div class="ws-head">
+                <div class="l">
+                  <h1>Table <em>A14</em></h1>
+                  <div class="meta">SESS-A14-0837 · opened 8:37 PM · Priya, +2 guests · Patio · seat 14</div>
+                </div>
+                <div class="r">
+                  <button class="btn btn-ghost">Split check</button>
+                  <button class="btn btn-ghost">Add item</button>
+                  <button class="btn btn-primary">Send bill →</button>
+                </div>
+              </div>
+              <div class="ws-body">
+
+                <div class="ws-col">
+                  <div class="rd">
+                    <div class="rd-head">
+                      <div>
+                        <div class="n">Round 1 <em class="serif-it" style="color: var(--accent);">· in progress</em></div>
+                        <div class="c">ORD-4821 · placed 8:37 PM · cooking 0:22</div>
+                      </div>
+                      <span class="chip chip-warn">● cooking</span>
+                    </div>
+                    <div class="rd-items">
+                      <div class="ri"><b>Cacio e pepe</b><span class="v">×2 · $41.00</span></div>
+                      <div class="ri mod">+ extra pecorino</div>
+                      <div class="ri"><b>Garden burrata</b><span class="v">×1 · $14.00</span></div>
+                      <div class="ri"><b>Grilled salmon</b><span class="v">×1 · $24.00</span></div>
+                      <div class="ri mod">asparagus · medium</div>
+                    </div>
+                  </div>
+
+                  <div class="rd" style="border-style: dashed;">
+                    <div class="rd-head">
+                      <div>
+                        <div class="n" style="color: var(--ink-500);">Round 2 <em class="serif-it">· awaiting</em></div>
+                        <div class="c">— next round will appear here when sent</div>
+                      </div>
+                      <span class="chip">awaiting</span>
+                    </div>
+                  </div>
+
+                  <div class="rd">
+                    <div class="rd-head">
+                      <div>
+                        <div class="n">Guest notes</div>
+                        <div class="c">pulled from the session</div>
+                      </div>
+                    </div>
+                    <div style="margin-top: 10px; padding: 12px; background: var(--ink-50); border-radius: var(--r-md); font-family: var(--serif); font-style: italic; font-size: 14px; color: var(--ink-700);">"Celebrating a birthday — could we do a small candle with the dessert course?"</div>
+                    <div style="margin-top: 8px; font-family: var(--mono); font-size: 10px; color: var(--ink-500);">— Priya · 8:40 PM</div>
+                  </div>
+                </div>
+
+                <div class="ws-col">
+                  <div class="running-bill">
+                    <div class="t">Running total</div>
+                    <h2>$93.61</h2>
+                    <div class="row"><span>Subtotal</span><span>$79.00</span></div>
+                    <div class="row"><span>Service · 10%</span><span>$7.90</span></div>
+                    <div class="row"><span>Tax</span><span>$6.71</span></div>
+                    <div class="row grand"><span>Due</span><span>$93.61</span></div>
+                    <div class="actions">
+                      <button class="btn-req">Request bill · to Priya</button>
+                      <button class="btn-po">Print to POS-01</button>
+                    </div>
+                  </div>
+                  <div class="rd">
+                    <div class="rd-head"><div class="n">Messages</div><span class="chip chip-accent">2 unread</span></div>
+                    <div style="margin-top: 10px; font-size: 12px; color: var(--ink-700); line-height: 1.5;">
+                      <div style="padding: 6px 0;"><b style="color: var(--ink-900); font-family: var(--serif);">Priya:</b> extra bread?</div>
+                      <div style="padding: 6px 0;"><b style="color: var(--ink-900); font-family: var(--serif);">Priya:</b> birthday candle plz 🎂</div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="screen-label"><span class="num">3</span><span class="title">Session detail</span><span class="desc">rounds + running bill</span></div>
+    </div>
+
+    <!-- 4. Attendance / clock-out -->
+    <div>
+      <div class="tablet">
+        <div class="tablet-screen">
+          <div class="w">
+            <div class="w-top">
+              <div class="brand"><div class="mark">R</div><div class="wm">Waiter</div></div>
+              <div class="sec">End of <b>shift</b> · Thu · Mar 14</div>
+              <div class="tabs"><div class="tab">Floor</div><div class="tab">Orders</div><div class="tab">Bills</div><div class="tab on">Me</div></div>
+              <div class="who"><span>Liam · 7h 42m</span><div class="av">L</div></div>
+            </div>
+            <div class="w-att">
+              <div class="w-att-head">
+                <h1>Night's <em>tally,</em> Liam.</h1>
+                <div class="meta">Shift · 4:00 PM → 11:42 PM · Patio · B</div>
+              </div>
+              <div class="w-att-body">
+
+                <div class="shift-card">
+                  <div class="shift-hero">
+                    <div class="big">$214.80</div>
+                    <div class="meta">
+                      <div class="t">Tips collected</div>
+                      <div class="s">18% avg · 23 covers · $9.34 per cover</div>
+                    </div>
+                  </div>
+                  <div class="tip-grid">
+                    <div class="tip-stat"><div class="v">23<em> covers</em></div><div class="l">guests served</div></div>
+                    <div class="tip-stat"><div class="v">11<em> sessions</em></div><div class="l">tables turned</div></div>
+                    <div class="tip-stat"><div class="v">7:42<em></em></div><div class="l">on the clock</div></div>
+                    <div class="tip-stat"><div class="v">$1,918<em></em></div><div class="l">gross revenue</div></div>
+                    <div class="tip-stat"><div class="v">4.8<em>/5</em></div><div class="l">guest rating</div></div>
+                    <div class="tip-stat"><div class="v">3:48<em></em></div><div class="l">avg table turn</div></div>
+                  </div>
+                  <div style="margin-top: 20px; display:flex; gap: 10px;">
+                    <button class="btn btn-primary" style="flex:1;">Clock out · confirm tally</button>
+                    <button class="btn btn-ghost">Dispute a tip</button>
+                  </div>
+                </div>
+
+                <div class="roster">
+                  <h3>Roster <em class="serif-it" style="color:var(--accent);">· tonight</em></h3>
+                  <div class="r-row in"><div class="av">L</div><div class="n">Liam (you)</div><div class="s">on · 7:42</div></div>
+                  <div class="r-row in"><div class="av">M</div><div class="n">Mei</div><div class="s">on · 6:10</div></div>
+                  <div class="r-row in"><div class="av">J</div><div class="n">Jun</div><div class="s">on · 4:22</div></div>
+                  <div class="r-row"><div class="av">R</div><div class="n">Rita</div><div class="s">out · 11:14</div></div>
+                  <div class="r-row"><div class="av">K</div><div class="n">Kenji · chef</div><div class="s">out · 11:02</div></div>
+                  <div class="r-row"><div class="av">A</div><div class="n">Amara · host</div><div class="s">out · 10:30</div></div>
+                  <h3 style="margin-top: 18px;">Tomorrow</h3>
+                  <div class="r-row"><div class="av">L</div><div class="n">Liam</div><div class="s">4:00 → 11:30</div></div>
+                  <div class="r-row"><div class="av">M</div><div class="n">Mei</div><div class="s">off</div></div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="screen-label"><span class="num">4</span><span class="title">Attendance · clock out</span><span class="desc">tally + roster</span></div>
+    </div>
+
+  </div>
+</body></html>

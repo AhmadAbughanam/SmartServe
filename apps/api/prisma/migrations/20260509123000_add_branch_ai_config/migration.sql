@@ -1,0 +1,1 @@
+ALTER TABLE "BranchSettings" ADD COLUMN IF NOT EXISTS "aiConfigJson" JSONB;

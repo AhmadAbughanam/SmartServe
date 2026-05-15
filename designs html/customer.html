@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<title>Customer · Screens</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="frames.css">
+<style>
+  /* ─── Customer phone shared ─── */
+  .c-screen { flex: 1; display: flex; flex-direction: column; background: var(--ink-0); overflow: hidden; }
+
+  /* Landing / entry */
+  .c-entry {
+    flex: 1; display: flex; flex-direction: column;
+    background: var(--ink-900); color: var(--ink-0);
+    padding: 0 26px; position: relative; overflow: hidden;
+  }
+  .c-entry::before {
+    content: ''; position: absolute; top: -80px; right: -80px;
+    width: 300px; height: 300px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(249,115,22,0.35), transparent);
+  }
+  .c-entry::after {
+    content: ''; position: absolute; bottom: -120px; left: -60px;
+    width: 280px; height: 280px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(249,115,22,0.15), transparent);
+  }
+  .c-entry > * { position: relative; z-index: 1; }
+  .c-entry .brand { margin-top: 24px; display: flex; align-items: center; gap: 8px; }
+  .c-entry .brand .mark { width: 28px; height: 28px; border-radius: 6px; background: var(--accent); color: var(--ink-900); display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-weight: 800; font-size: 16px; font-style: italic; }
+  .c-entry .brand .wm { font-family: var(--serif); font-weight: 700; font-size: 16px; }
+  .c-entry .hero { margin-top: 96px; }
+  .c-entry .hero .eyebrow { color: var(--accent); }
+  .c-entry .hero h1 { margin: 14px 0 12px; font-family: var(--serif); font-weight: 800; font-size: 56px; line-height: 0.98; letter-spacing: -0.03em; }
+  .c-entry .hero h1 em { font-style: italic; font-weight: 500; color: var(--accent); display: block; }
+  .c-entry .hero p { margin: 0; font-size: 14px; color: rgba(255,255,255,0.65); line-height: 1.55; max-width: 240px; }
+
+  .c-entry .cta { margin-top: auto; padding-bottom: 36px; display: flex; flex-direction: column; gap: 10px; }
+  .c-entry .cta .btn-primary { background: var(--accent); color: var(--ink-900); padding: 16px; font-size: 15px; font-weight: 700; border: 0; }
+  .c-entry .cta .btn-ghost { background: transparent; color: var(--ink-0); border: 1px solid rgba(255,255,255,0.25); padding: 14px; font-size: 13px; font-weight: 500; }
+
+  /* Start session */
+  .c-start { padding: 0 24px 24px; display: flex; flex-direction: column; flex: 1; }
+  .c-start .back { margin-top: 16px; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--ink-200); display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--ink-700); }
+  .c-start h1 { margin: 32px 0 6px; font-family: var(--serif); font-weight: 800; font-size: 36px; line-height: 0.98; letter-spacing: -0.02em; }
+  .c-start h1 em { font-style: italic; font-weight: 500; color: var(--accent); }
+  .c-start .sub { margin: 0 0 24px; font-size: 13px; color: var(--ink-500); line-height: 1.5; }
+  .c-start .tbl-card { border: 1px solid var(--ink-900); border-radius: var(--r-lg); padding: 16px; display: flex; gap: 14px; align-items: center; }
+  .c-start .tbl-card .tbl-num { font-family: var(--serif); font-weight: 800; font-size: 30px; color: var(--accent); width: 56px; text-align: center; letter-spacing: -0.02em; }
+  .c-start .tbl-card .tbl-meta .micro { color: var(--ink-500); }
+  .c-start .tbl-card .tbl-meta .name { font-family: var(--serif); font-weight: 700; font-size: 15px; margin-top: 2px; }
+  .c-start .tbl-card .tbl-meta .det { font-family: var(--mono); font-size: 10px; color: var(--ink-500); margin-top: 2px; }
+
+  .c-start .label { margin-top: 22px; }
+  .c-start .guest-grid { margin-top: 12px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .c-start .guest-grid .g { aspect-ratio: 1; border: 1px solid var(--ink-300); border-radius: var(--r-md); display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-weight: 700; font-size: 18px; color: var(--ink-700); }
+  .c-start .guest-grid .g.on { border-color: var(--ink-900); background: var(--ink-900); color: var(--ink-0); }
+
+  .c-start .name-field { margin-top: 22px; border: 1px solid var(--ink-300); border-radius: var(--r-md); padding: 14px; font-family: var(--sans); font-weight: 500; font-size: 14px; }
+
+  .c-start .btn-go { margin-top: auto; background: var(--ink-900); color: var(--ink-0); padding: 16px; border-radius: var(--r-md); font-weight: 700; font-size: 15px; text-align: center; }
+
+  /* Menu */
+  .c-menu { flex: 1; display: flex; flex-direction: column; background: var(--ink-0); overflow: hidden; }
+  .c-menu-head { padding: 12px 24px 16px; border-bottom: 1px solid var(--ink-200); }
+  .c-menu-head .top { display: flex; justify-content: space-between; align-items: center; }
+  .c-menu-head .top .t { font-family: var(--mono); font-size: 11px; color: var(--ink-500); }
+  .c-menu-head .top .t .accent { color: var(--accent); }
+  .c-menu-head .top .ic { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--ink-200); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--ink-700); }
+  .c-menu-head h1 { margin: 10px 0 0; font-family: var(--serif); font-weight: 800; font-size: 32px; letter-spacing: -0.02em; line-height: 1; }
+  .c-menu-head h1 em { font-style: italic; font-weight: 500; color: var(--accent); }
+
+  .c-menu-tabs { display: flex; gap: 4px; padding: 10px 24px; border-bottom: 1px solid var(--ink-200); overflow-x: auto; }
+  .c-menu-tabs .tab { padding: 6px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid var(--ink-200); white-space: nowrap; color: var(--ink-700); background: var(--ink-0); }
+  .c-menu-tabs .tab.on { background: var(--ink-900); color: var(--ink-0); border-color: var(--ink-900); }
+
+  .c-menu-body { flex: 1; overflow-y: auto; padding: 16px 24px 120px; }
+  .cat-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+  .cat-head h2 { margin: 0; font-family: var(--serif); font-weight: 700; font-size: 22px; letter-spacing: -0.01em; }
+  .cat-head .count { font-family: var(--mono); font-size: 10px; color: var(--ink-500); }
+  .menu-item { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--ink-200); }
+  .menu-item:last-child { border-bottom: 0; }
+  .menu-item .photo { width: 72px; height: 72px; border-radius: var(--r-md); flex-shrink: 0; font-size: 10px; }
+  .menu-item .meta { flex: 1; display: flex; flex-direction: column; }
+  .menu-item .meta .name { font-family: var(--serif); font-weight: 700; font-size: 15px; line-height: 1.2; }
+  .menu-item .meta .desc { font-size: 11px; color: var(--ink-500); margin-top: 3px; line-height: 1.4; }
+  .menu-item .meta .bot { margin-top: auto; display: flex; justify-content: space-between; align-items: center; padding-top: 8px; }
+  .menu-item .price { font-family: var(--serif); font-weight: 700; font-size: 16px; color: var(--ink-900); }
+  .menu-item .price s { color: var(--ink-400); font-weight: 500; font-size: 12px; margin-right: 4px; }
+  .menu-item .add { width: 28px; height: 28px; border-radius: 50%; background: var(--ink-900); color: var(--ink-0); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 500; }
+  .menu-item .tags { display: flex; gap: 4px; margin-top: 5px; }
+
+  .c-cart-cta {
+    position: absolute; bottom: 8px; left: 12px; right: 12px;
+    background: var(--ink-900); color: var(--ink-0); border-radius: var(--r-md);
+    padding: 14px 18px; display: flex; justify-content: space-between; align-items: center;
+    z-index: 40; box-shadow: 0 10px 30px -10px rgba(12,10,9,0.6);
+  }
+  .c-cart-cta .l { display: flex; align-items: center; gap: 10px; }
+  .c-cart-cta .chip { background: var(--accent); color: var(--ink-900); border-color: transparent; font-weight: 700; }
+  .c-cart-cta .t { font-family: var(--serif); font-weight: 700; font-size: 15px; }
+  .c-cart-cta .sum { font-family: var(--mono); font-weight: 700; font-size: 14px; }
+
+  /* Item sheet / detail */
+  .c-item { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .c-item .hero-img { height: 280px; padding: 16px; font-size: 12px; }
+  .c-item .close {
+    position: absolute; top: 60px; left: 20px; z-index: 40;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }
+  .c-item .body { flex: 1; overflow-y: auto; padding: 20px 24px 120px; }
+  .c-item .body h1 { margin: 0; font-family: var(--serif); font-weight: 800; font-size: 30px; letter-spacing: -0.015em; line-height: 1; }
+  .c-item .body .price { font-family: var(--serif); font-weight: 700; font-size: 24px; color: var(--accent); margin-top: 8px; }
+  .c-item .body .desc { margin: 14px 0 20px; font-size: 13px; color: var(--ink-600); line-height: 1.5; }
+  .c-item .opts { border-top: 1px solid var(--ink-200); padding-top: 18px; }
+  .c-item .opts h3 { margin: 0 0 10px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-900); }
+  .c-item .opts .opt { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--ink-100); align-items: center; }
+  .c-item .opts .opt:last-child { border-bottom: 0; }
+  .c-item .opts .opt .n { font-size: 14px; font-weight: 500; }
+  .c-item .opts .opt .p { font-family: var(--mono); font-size: 11px; color: var(--ink-500); }
+  .c-item .opts .opt .box { width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--ink-300); }
+  .c-item .opts .opt.on .box { background: var(--ink-900); border-color: var(--ink-900); position: relative; }
+  .c-item .opts .opt.on .box::after { content: '✓'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ink-0); font-size: 12px; }
+
+  .qsel { display: inline-flex; align-items: center; gap: 14px; border: 1px solid var(--ink-900); border-radius: 999px; padding: 6px 14px; }
+  .qsel button { width: 24px; height: 24px; border: 0; background: transparent; font-size: 16px; font-weight: 700; color: var(--ink-900); }
+  .qsel .n { font-family: var(--serif); font-weight: 700; font-size: 17px; }
+
+  /* Cart */
+  .c-cart { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--ink-50); }
+  .c-cart-head { padding: 16px 24px 18px; background: var(--ink-0); border-bottom: 1px solid var(--ink-200); }
+  .c-cart-head .top { display: flex; justify-content: space-between; align-items: center; }
+  .c-cart-head h1 { margin: 8px 0 0; font-family: var(--serif); font-weight: 800; font-size: 28px; letter-spacing: -0.015em; }
+  .c-cart-head h1 em { font-style: italic; font-weight: 500; color: var(--accent); }
+  .c-cart-body { flex: 1; overflow-y: auto; padding: 16px 20px 130px; }
+  .cart-card { background: var(--ink-0); border: 1px solid var(--ink-200); border-radius: var(--r-lg); padding: 6px 16px; }
+  .cart-item { display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--ink-100); }
+  .cart-item:last-child { border-bottom: 0; }
+  .cart-item .photo { width: 56px; height: 56px; border-radius: var(--r-md); flex-shrink: 0; font-size: 9px; padding: 6px; }
+  .cart-item .m { flex: 1; min-width: 0; }
+  .cart-item .m .n { font-family: var(--serif); font-weight: 700; font-size: 14px; }
+  .cart-item .m .o { font-size: 10px; color: var(--ink-500); margin-top: 2px; font-family: var(--mono); }
+  .cart-item .m .b { margin-top: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .cart-item .m .b .p { font-family: var(--serif); font-weight: 700; font-size: 15px; color: var(--ink-900); }
+  .cart-item .m .b .q { display: inline-flex; align-items: center; gap: 10px; border: 1px solid var(--ink-200); border-radius: 999px; padding: 2px 10px; font-size: 12px; }
+  .cart-item .m .b .q b { font-family: var(--serif); font-weight: 700; font-size: 13px; }
+
+  .tot { margin-top: 14px; background: var(--ink-0); border: 1px solid var(--ink-200); border-radius: var(--r-lg); padding: 12px 16px; }
+  .tot .row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; color: var(--ink-600); }
+  .tot .row .v { font-family: var(--mono); font-weight: 600; color: var(--ink-900); }
+  .tot .row.grand { border-top: 1px dashed var(--ink-200); padding-top: 12px; margin-top: 8px; font-size: 14px; font-weight: 700; color: var(--ink-900); }
+  .tot .row.grand .v { font-family: var(--serif); font-size: 22px; color: var(--accent); }
+
+  .promo { margin-top: 10px; display: flex; gap: 8px; }
+  .promo .in { flex: 1; background: var(--ink-0); border: 1px dashed var(--ink-300); border-radius: var(--r-md); padding: 12px; font-family: var(--mono); font-size: 11px; color: var(--ink-500); }
+  .promo .apply { padding: 0 16px; border: 1px solid var(--ink-900); border-radius: var(--r-md); background: var(--ink-0); font-size: 12px; font-weight: 600; color: var(--ink-900); }
+
+  /* Orders / tracking */
+  .c-orders { flex: 1; display: flex; flex-direction: column; background: var(--ink-50); overflow: hidden; }
+  .c-orders-head { padding: 16px 24px 14px; background: var(--ink-0); border-bottom: 1px solid var(--ink-200); }
+  .c-orders-head h1 { margin: 4px 0 0; font-family: var(--serif); font-weight: 800; font-size: 26px; letter-spacing: -0.015em; }
+  .c-orders-head h1 em { font-style: italic; font-weight: 500; color: var(--accent); }
+  .c-orders-body { flex: 1; overflow-y: auto; padding: 14px 20px 130px; }
+
+  .running {
+    background: var(--ink-900); color: var(--ink-0);
+    border-radius: var(--r-lg); padding: 14px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .running .l .micro { color: rgba(255,255,255,0.6); }
+  .running .l .code { font-family: var(--mono); font-size: 10px; margin-top: 2px; color: rgba(255,255,255,0.7); }
+  .running .r { font-family: var(--serif); font-weight: 800; font-size: 28px; color: var(--accent); }
+
+  .round { margin-top: 14px; background: var(--ink-0); border: 1px solid var(--ink-200); border-radius: var(--r-lg); padding: 14px 16px; }
+  .round .top { display: flex; justify-content: space-between; align-items: center; }
+  .round .top .name { font-family: var(--serif); font-weight: 700; font-size: 15px; }
+  .round .top .code { font-family: var(--mono); font-size: 10px; color: var(--ink-500); margin-top: 2px; }
+
+  .progress { margin-top: 14px; position: relative; display: flex; justify-content: space-between; }
+  .progress::before { content: ''; position: absolute; top: 6px; left: 0; right: 0; height: 1px; background: var(--ink-200); z-index: 0; }
+  .progress .fill { position: absolute; top: 6px; left: 0; height: 1px; background: var(--accent); z-index: 1; width: 68%; }
+  .progress .step { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 6px; font-family: var(--mono); font-size: 9px; text-transform: uppercase; color: var(--ink-400); letter-spacing: 0.08em; }
+  .progress .step .node { width: 13px; height: 13px; border-radius: 50%; background: var(--ink-0); border: 1px solid var(--ink-300); }
+  .progress .step.done .node { background: var(--accent); border-color: var(--accent); }
+  .progress .step.done { color: var(--ink-900); }
+  .progress .step.now .node { background: var(--accent); border-color: var(--accent); }
+  .progress .step.now .node { box-shadow: 0 0 0 4px rgba(249,115,22,0.2); }
+
+  .items-mini { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: var(--ink-700); }
+  .items-mini .row { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px dashed var(--ink-200); }
+  .items-mini .row:first-child { border-top: 0; }
+
+  .call-grid { margin-top: 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .call-btn { background: var(--ink-0); border: 1px solid var(--ink-200); border-radius: var(--r-md); padding: 12px 0; text-align: center; }
+  .call-btn .i { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 17px; color: var(--accent); }
+  .call-btn .n { font-size: 10px; margin-top: 3px; color: var(--ink-600); font-weight: 500; }
+
+  /* Success */
+  .c-paid { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 40px 24px 24px; background: var(--ink-0); }
+  .c-paid .mark-ok { width: 88px; height: 88px; border-radius: 50%; background: var(--ink-900); color: var(--accent); display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-weight: 700; font-size: 42px; font-style: italic; margin-top: 36px; }
+  .c-paid h1 { margin: 24px 0 6px; font-family: var(--serif); font-weight: 800; font-size: 36px; letter-spacing: -0.02em; line-height: 1; }
+  .c-paid h1 em { font-style: italic; font-weight: 500; color: var(--accent); display: block; }
+  .c-paid .p { margin: 0; font-size: 13px; color: var(--ink-500); line-height: 1.5; max-width: 240px; }
+
+  .receipt { margin-top: 22px; width: 100%; border: 1px solid var(--ink-200); border-radius: var(--r-lg); padding: 16px; text-align: left; background: var(--ink-50); }
+  .receipt .tp { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px dashed var(--ink-300); }
+  .receipt .tp .code { font-family: var(--mono); font-size: 10px; color: var(--ink-500); margin-top: 3px; }
+  .receipt .tp .amt { font-family: var(--serif); font-weight: 800; font-size: 22px; color: var(--accent); }
+  .receipt .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 12px; color: var(--ink-600); }
+  .receipt .row .v { color: var(--ink-900); font-weight: 600; font-family: var(--mono); }
+  .receipt .row .ok { color: var(--ok); }
+
+  .c-paid .foot { margin-top: auto; width: 100%; display: flex; flex-direction: column; gap: 8px; padding-top: 16px; }
+
+  /* Cancel */
+  .c-cancel .mark-ok { background: var(--warn-soft); color: var(--warn); border: 1px solid #fde68a; }
+  .c-cancel h1 em { color: var(--warn); }
+
+  /* Error */
+  .c-err { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 40px 28px 24px; background: var(--ink-0); }
+  .c-err .mark-err { margin-top: 48px; width: 84px; height: 84px; border-radius: 50%; background: var(--bad-soft); border: 1px solid #fecaca; color: var(--bad); display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-weight: 800; font-size: 40px; font-style: italic; }
+  .c-err h1 { margin: 22px 0 6px; font-family: var(--serif); font-weight: 800; font-size: 28px; letter-spacing: -0.015em; line-height: 1.05; }
+  .c-err h1 em { font-style: italic; font-weight: 500; color: var(--bad); }
+  .c-err .p { margin: 0; font-size: 13px; color: var(--ink-500); line-height: 1.5; max-width: 240px; }
+  .c-err .code { margin-top: 16px; font-family: var(--mono); font-size: 10px; background: var(--ink-100); padding: 6px 10px; border-radius: 6px; color: var(--ink-600); }
+  .c-err .foot { margin-top: auto; width: 100%; display: flex; flex-direction: column; gap: 8px; }
+
+  /* Menu item tag variations */
+  .dot-veg { width: 10px; height: 10px; border: 1.5px solid var(--ok); display: inline-block; border-radius: 2px; }
+  .dot-veg::after { content: ''; display: block; width: 4px; height: 4px; background: var(--ok); border-radius: 50%; margin: 2px auto; }
+</style>
+</head>
+<body class="canvas">
+  <div class="canvas-head">
+    <h1>Customer <em>screens</em></h1>
+    <div class="meta">10 screens · phone<br>entry → menu → cart → track → pay</div>
+  </div>
+
+  <div class="surface-grid">
+    <div class="row phones">
+
+      <!-- 1. Landing -->
+      <div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="phone-status dark"><span>9:41</span><span class="r">5G ·· 􀛪</span></div>
+            <div class="phone-content">
+              <div class="c-entry">
+                <div class="brand"><div class="mark">R</div><div class="wm">Restaurant <em class="serif-it">OS</em></div></div>
+                <div class="hero">
+                  <div class="eyebrow">Table 14 · Beachside</div>
+                  <h1>A seat,<em>a story.</em></h1>
+                  <p>Order, track, and settle — right from your table. Scan the little card to begin.</p>
+                </div>
+                <div class="cta">
+                  <button class="btn btn-primary">Scan table QR →</button>
+                  <button class="btn btn-ghost">I already have a session</button>
+                </div>
+              </div>
+            </div>
+            <div class="phone-home dark"></div>
+          </div>
+        </div>
+        <div class="screen-label"><span class="num">1</span><span class="title">Landing</span><span class="desc">dark hero · brand-forward</span></div>
+      </div>
+
+      <!-- 2. Start session -->
+      <div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="phone-status"><span>9:41</span><span class="r">5G ·· 􀛪</span></div>
+            <div class="phone-content">
+              <div class="c-start">
+                <div class="back">←</div>
+                <h1>Welcome,<br><em>Priya.</em></h1>
+                <p class="sub">Seated at Beachside Bistro. Let's get ordering.</p>
+                <div class="tbl-card">
+                  <div class="tbl-num">14</div>
+                  <div class="tbl-meta">
+                    <div class="micro">Your table</div>
+                    <div class="name">Patio · Seat A14</div>
+                    <div class="det">SESS-A14-0837 · 8:37 PM</div>
+                  </div>
+                </div>
+                <div class="label eyebrow">Guests at the table</div>
+                <div class="guest-grid">
+                  <div class="g">1</div><div class="g">2</div><div class="g on">3</div><div class="g">4</div><div class="g">5+</div>
+                </div>
+                <div class="label eyebrow">Your name <span style="color:var(--ink-400); text-transform: none; letter-spacing: 0;">(optional)</span></div>
+                <div class="name-field">Priya</div>
+                <div class="btn-go">Start ordering →</div>
+              </div>
+            </div>
+            <div class="phone-home"></div>
+          </div>
+        </div>
+        <div class="screen-label"><span class="num">2</span><span class="title">Start session</span><span class="desc">table + guest count</span></div>
+      </div>
+
+      <!-- 3. Menu -->
+      <div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="phone-status"><span>9:41</span><span class="r">5G ·· 􀛪</span></div>
+            <div class="phone-content">
+              <div class="c-menu">
+                <div class="c-menu-head">
+                  <div class="top">
+                    <div class="t"><span class="accent">●</span> Table A14 · open</div>
+                    <div class="ic">🔍</div>
+                  </div>
+                  <h1>The <em>menu</em></h1>
+                </div>
+                <div class="c-menu-tabs">
+                  <div class="tab on">All</div>
+                  <div class="tab">Starters</div>
+                  <div class="tab">Mains</div>
+                  <div class="tab">Dessert</div>
+                  <div class="tab">Wine</div>
+                </div>
+                <div class="c-menu-body">
+                  <div class="cat-head"><h2>Starters</h2><span class="count">6 dishes</span></div>
+
+                  <div class="menu-item">
+                    <div class="photo p1"><span>Halloumi,<br>harissa aioli</span></div>
+                    <div class="meta">
+                      <div class="name">Crispy Halloumi</div>
+                      <div class="desc">Panko-crust, pomegranate seeds.</div>
+                      <div class="bot"><span class="price">$12.50</span><span class="add">+</span></div>
+                    </div>
+                  </div>
+
+                  <div class="menu-item">
+                    <div class="photo p2"><span>Garden<br>burrata</span></div>
+                    <div class="meta">
+                      <div class="name">Garden Burrata</div>
+                      <div class="desc">Heirloom tomato, basil oil.</div>
+                      <div class="bot"><span class="price">$14.00</span><span class="add">+</span></div>
+                    </div>
+                  </div>
+
+                  <div class="cat-head" style="margin-top: 24px;"><h2>Mains</h2><span class="count">8 dishes</span></div>
+
+                  <div class="menu-item">
+                    <div class="photo p3"><span>Cacio<br>e pepe</span></div>
+                    <div class="meta">
+                      <div class="name">Cacio e Pepe</div>
+                      <div class="desc">Tonnarelli, pecorino, black pepper.</div>
+                      <div class="bot"><span class="price">$18.50</span><span class="add">+</span></div>
+                    </div>
+                  </div>
+
+                  <div class="menu-item">
+                    <div class="photo p4"><span>Grilled<br>salmon</span></div>
+                    <div class="meta">
+                      <div class="name">Grilled Salmon</div>
+                      <div class="desc">Dill beurre blanc, asparagus.</div>
+                      <div class="bot"><span class="price"><s>$26</s>$24.00</span><span class="add">+</span></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="c-cart-cta">
+                  <div class="l"><span class="chip">3</span><span class="t">View cart</span></div>
+                  <span class="sum">$79.00</span>
+                </div>
+              </div>
+            </div>
+            <div class="phone-home"></div>
+          </div>
+        </div>
+        <div class="screen-label"><span class="num">3</span><span class="title">Menu</span><span class="desc">categorized · photo tiles</span></div>
+      </div>
+
+      <!-- 4. Item sheet -->
+      <div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="phone-status dark"><span>9:41</span><span class="r">5G ·· 􀛪</span></div>
+            <div class="phone-content">
+              <div class="c-item">
+                <div class="photo p3 hero-img" style="font-size: 14px;"><span>Cacio e pepe,<br>al dente</span></div>
+                <div class="close">×</div>
+                <div class="body">
+                  <div class="eyebrow" style="color: var(--accent);">Mains · Pasta</div>
+                  <h1 style="margin-top: 8px;">Cacio <em class="serif-it" style="color:var(--accent);">e pepe</em></h1>
+                  <div class="price">$18.50</div>
+                  <p class="desc">Tonnarelli, pecorino romano, freshly cracked black pepper, a whisper of starchy pasta water. The Roman classic — no shortcuts.</p>
+                  <div class="opts">
+                    <h3>Add-ons</h3>
+                    <div class="opt on"><span class="n">Extra pecorino</span><span class="p">+$2.50</span><span class="box"></span></div>
+                    <div class="opt"><span class="n">Soft-poached egg</span><span class="p">+$3.00</span><span class="box"></span></div>
+                    <div class="opt"><span class="n">Pancetta crumble</span><span class="p">+$4.00</span><span class="box"></span></div>
+                  </div>
+                  <div class="opts" style="margin-top: 18px;">
+                    <h3>Notes for the kitchen</h3>
+                    <div style="font-family: var(--mono); font-size: 11px; padding: 10px 12px; border: 1px solid var(--ink-200); border-radius: var(--r-md); color: var(--ink-500);">e.g. light on the pepper…</div>
+                  </div>
+                </div>
+                <div class="c-cart-cta" style="justify-content: space-between;">
+                  <div class="qsel" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: var(--ink-0);">
+                    <button style="color: var(--ink-0);">−</button><span class="n" style="color: var(--ink-0);">2</span><button style="color: var(--ink-0);">+</button>
+                  </div>
+                  <span class="sum">Add · $42.00</span>
+                </div>
+              </div>
+            </div>
+            <div class="phone-home dark"></div>
+          </div>
+        </div>
+        <div class="screen-label"><span class="num">4</span><span class="title">Item sheet</span><span class="desc">photo hero · options</span></div>
+      </div>
+
+      <!-- 5. Cart -->
+      <div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="phone-status"><span>9:41</span><span class="r">5G ·· 􀛪</span></div>
+            <div class="phone-content">
+              <div class="c-cart">
+                <div class="c-cart-head">
+                  <div class="top"><span class="micro">Review · Table A14</span><div style="width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--ink-200); display: flex; align-items: center; justify-content: center; font-size: 14px;">←</div></div>
+                  <h1>Your <em>cart.</em></h1>
+                </div>
+                <div class="c-cart-body">
+                  <div class="cart-card">
+                    <div class="cart-item">
+                      <div class="photo p3"><span>Cacio</span></div>
+                      <div class="m"><div class="n">Cacio e Pepe</div><div class="o">+ extra pecorino</div><div class="b"><div class="q"><span>−</span><b>2</b><span>+</span></div><span class="p">$41.00</span></div></div>
+                    </div>
+                    <div class="cart-item">
+                      <div class="photo p2"><span>Burrata</span></div>
+                      <div class="m"><div class="n">Garden Burrata</div><div class="o">vegetarian</div><div class="b"><div class="q"><span>−</span><b>1</b><span>+</span></div><span class="p">$14.00</span></div></div>
+                    </div>
+                    <div class="cart-item">
+                      <div class="photo p4"><span>Salmon</span></div>
+                      <div class="m"><div class="n">Grilled Salmon</div><div class="o">asparagus · medium</div><div class="b"><div class="q"><span>−</span><b>1</b><span>+</span></div><span class="p">$24.00</span></div></div>
+                    </div>
+                  </div>
+                  <div class="promo">
+                    <div class="in">promo code · BEACH10</div>
+                    <div class="apply">Apply</div>
+                  </div>
+                  <div class="tot">
+                    <div class="row"><span>Subtotal</span><span class="v">$79.00</span></div>
+                    <div class="row"><span>Service · 10%</span><span class="v">$7.90</span></div>
+                    <div class="row"><span>Tax</span><span class="v">$6.71</span></div>
+                    <div class="row grand"><span>Total</span><span class="v">$93.61</span></div>
+                  </div>
+                </div>
+                <div class="c-cart-cta"><span class="t">Send to kitchen</span><span class="sum">$93.61 →</span></div>
+              </div>
+            </div>
+            <div class="phone-home"></div>
+          </div>
+        </div>
+        <div class="screen-label"><span class="num">5</span><span class="title">Cart</span><span class="desc">review + totals + promo</span></div>
+      </div>
+
+      <!-- 6. Orders / tracking -->
+      <div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="phone-status"><span>9:41</span><span class="r">5G ·· 􀛪</span></div>
+            <div class="phone-content">
+              <div class="c-orders">
+                <div class="c-orders-head">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="micro">Session · Table A14</span>
+                    <span class="chip chip-accent">● Open</span>
+                  </div>
+                  <h1>Your <em>orders.</em></h1>
+                </div>
+                <div class="c-orders-body">
+                  <div class="running">
+                    <div class="l">
+                      <div class="micro">Running total</div>
+                      <div class="code">SESS-A14-0837</div>
+                    </div>
+                    <div class="r">$93.61</div>
+                  </div>
+
+                  <div class="round">
+                    <div class="top">
+                      <div>
+                        <div class="name">Round 1 · 3 items</div>
+                        <div class="code">ORD-4821 · 8:37 PM</div>
+                      </div>
+                      <span class="chip chip-warn">● Cooking</span>
+                    </div>
+                    <div class="progress">
+                      <div class="fill"></div>
+                      <div class="step done"><span class="node"></span>Sent</div>
+                      <div class="step done"><span class="node"></span>Ack</div>
+                      <div class="step now"><span class="node"></span>Cooking</div>
+                      <div class="step"><span class="node"></span>Ready</div>
+                      <div class="step"><span class="node"></span>Served</div>
+                    </div>
+                    <div class="items-mini">
+                      <div class="row"><span>Cacio e pepe · 2</span><span>$41.00</span></div>
+                      <div class="row"><span>Garden burrata · 1</span><span>$14.00</span></div>
+                      <div class="row"><span>Grilled salmon · 1</span><span>$24.00</span></div>
+                    </div>
+                  </div>
+
+                  <div class="eyebrow" style="margin-top: 20px;">Need anything?</div>
+                  <div class="call-grid">
+                    <div class="call-btn"><div class="i">"waiter"</div><div class="n">Flag</div></div>
+                    <div class="call-btn"><div class="i">H₂O</div><div class="n">Water</div></div>
+                    <div class="call-btn"><div class="i">fork</div><div class="n">Cutlery</div></div>
+                    <div class="call-btn"><div class="i">bill</div><div class="n">Pay</div></div>
+                  </div>
+                </div>
+                <div class="c-cart-cta"><span class="t">Request bill</span><span class="sum">pay $93.61 →</span></div>
+              </div>
+            </div>
+            <div class="phone-home"></div>
+          </div>
+        </div>
+        <div class="screen-label"><span class="num">6</span><span class="title">Order tracking</span><span class="desc">live progress · needs</span></div>
+      </div>
+
+      <!-- 7. Bill request -->
+      <div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="phone-status"><span>9:41</span><span class="r">5G ·· 􀛪</span></div>
+            <div class="phone-content">
+              <div class="c-cart">
+                <div class="c-cart-head">
+                  <div class="top"><span class="micro">Settle · Table A14</span><div style="width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--ink-200); display: flex; align-items: center; justify-content: center; font-size: 14px;">←</div></div>
+                  <h1>Settle the <em>bill.</em></h1>
+                </div>
+                <div class="c-cart-body">
+                  <div class="tot" style="margin-top: 0;">
+                    <div class="row grand" style="border: 0; padding-top: 0; margin-top: 0; font-size: 14px;"><span>Total due</span><span class="v">$93.61</span></div>
+                    <div class="row"><span style="color:var(--ink-500);">3 items · service + tax incl.</span><span class="v" style="color: var(--ink-500);">paid in full</span></div>
+                  </div>
+
+                  <div class="eyebrow" style="margin-top: 20px;">Split the bill?</div>
+                  <div style="margin-top: 10px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                    <div style="padding: 16px 0; border: 1px solid var(--ink-900); background: var(--ink-900); color: var(--ink-0); border-radius: var(--r-md); text-align: center; font-family: var(--serif); font-weight: 700; font-size: 16px;">No</div>
+                    <div style="padding: 16px 0; border: 1px solid var(--ink-200); border-radius: var(--r-md); text-align: center; font-family: var(--serif); font-weight: 700; font-size: 16px; color: var(--ink-700);">2</div>
+                    <div style="padding: 16px 0; border: 1px solid var(--ink-200); border-radius: var(--r-md); text-align: center; font-family: var(--serif); font-weight: 700; font-size: 16px; color: var(--ink-700);">3</div>
+                    <div style="padding: 16px 0; border: 1px solid var(--ink-200); border-radius: var(--r-md); text-align: center; font-family: var(--serif); font-weight: 700; font-size: 16px; color: var(--ink-700);">items</div>
+                  </div>
+
+                  <div class="eyebrow" style="margin-top: 20px;">Add tip</div>
+                  <div style="margin-top: 10px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                    <div style="padding: 14px 0; border: 1px solid var(--ink-200); border-radius: var(--r-md); text-align: center;"><div style="font-family: var(--serif); font-weight: 700; font-size: 17px;">10%</div><div style="font-family: var(--mono); font-size: 10px; color: var(--ink-500);">$9.36</div></div>
+                    <div style="padding: 14px 0; border: 1px solid var(--accent); background: var(--accent-soft); border-radius: var(--r-md); text-align: center;"><div style="font-family: var(--serif); font-weight: 700; font-size: 17px; color: var(--accent-ink);">18%</div><div style="font-family: var(--mono); font-size: 10px; color: var(--accent-ink);">$16.85</div></div>
+                    <div style="padding: 14px 0; border: 1px solid var(--ink-200); border-radius: var(--r-md); text-align: center;"><div style="font-family: var(--serif); font-weight: 700; font-size: 17px;">25%</div><div style="font-family: var(--mono); font-size: 10px; color: var(--ink-500);">$23.40</div></div>
+                    <div style="padding: 14px 0; border: 1px solid var(--ink-200); border-radius: var(--r-md); text-align: center;"><div style="font-family: var(--serif); font-weight: 700; font-size: 17px;">…</div><div style="font-family: var(--mono); font-size: 10px; color: var(--ink-500);">custom</div></div>
+                  </div>
+
+                  <div class="eyebrow" style="margin-top: 20px;">Payment</div>
+                  <div style="margin-top: 10px; border: 1px solid var(--ink-900); border-radius: var(--r-md); padding: 14px; display: flex; gap: 14px; align-items: center;">
+                    <div style="width: 40px; height: 28px; background: var(--ink-900); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--accent); font-family: var(--serif); font-weight: 700; font-size: 12px; font-style: italic;">V</div>
+                    <div style="flex:1;"><div style="font-family: var(--serif); font-weight: 700; font-size: 14px;">Visa · 4821</div><div style="font-family: var(--mono); font-size: 10px; color: var(--ink-500);">expires 09/28</div></div>
+                    <div style="font-family: var(--mono); font-size: 10px; color: var(--accent);">● default</div>
+                  </div>
+                </div>
+                <div class="c-cart-cta"><span class="t">Pay now</span><span class="sum">$110.46 →</span></div>
+              </div>
+            </div>
+            <div class="phone-home"></div>
+          </div>
+        </div>
+        <div class="screen-label"><span class="num">7</span><span class="title">Bill · split · tip</span><span class="desc">pre-pay review</span></div>
+      </div>
+
+      <!-- 8. Payment success -->
+      <div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="phone-status"><span>9:41</span><span class="r">5G ·· 􀛪</span></div>
+            <div class="phone-content">
+              <div class="c-paid">
+                <div class="mark-ok">✓</div>
+                <h1>Grazie,<em>Priya.</em></h1>
+                <p class="p">Receipt emailed to <strong style="color:var(--ink-900);">priya@…</strong>. We hope you enjoyed it.</p>
+                <div class="receipt">
+                  <div class="tp">
+                    <div>
+                      <div class="micro">Paid</div>
+                      <div class="code">SESS-A14-0837 · ORD-4821</div>
+                    </div>
+                    <div class="amt">$110.46</div>
+                  </div>
+                  <div class="row"><span>Subtotal</span><span class="v">$79.00</span></div>
+                  <div class="row"><span>Service</span><span class="v">$7.90</span></div>
+                  <div class="row"><span>Tax</span><span class="v">$6.71</span></div>
+                  <div class="row"><span>Tip · 18%</span><span class="v">$16.85</span></div>
+                  <div class="row" style="border-top: 1px dashed var(--ink-300); margin-top: 4px; padding-top: 8px;"><span>Visa · 4821</span><span class="v ok">✓ approved</span></div>
+                </div>
+                <div class="foot">
+                  <button class="btn btn-primary">Rate the experience</button>
+                  <button class="btn btn-ghost">Email copy · add tip later</button>
+                </div>
+              </div>
+            </div>
+            <div class="phone-home"></div>
+          </div>
+        </div>
+        <div class="screen-label"><span class="num">8</span><span class="title">Payment success</span><span class="desc">receipt · review prompt</span></div>
+      </div>
+
+      <!-- 9. Payment cancelled -->
+      <div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="phone-status"><span>9:41</span><span class="r">5G ·· 􀛪</span></div>
+            <div class="phone-content">
+              <div class="c-paid c-cancel">
+                <div class="mark-ok">!</div>
+                <h1>Payment<em>paused.</em></h1>
+                <p class="p">No charge was made. Your session is still open — try a different card when ready.</p>
+                <div style="margin-top: 22px; width: 100%; padding: 14px 16px; background: var(--warn-soft); border: 1px solid #fde68a; border-radius: var(--r-lg); text-align: left;">
+                  <div class="micro" style="color: var(--warn);">What happened</div>
+                  <div style="font-size: 12px; color: #78350f; margin-top: 4px; line-height: 1.5;">Stripe reported the payment sheet was dismissed before it completed. No money left your account.</div>
+                </div>
+                <div style="margin-top: 14px; width: 100%;">
+                  <div class="receipt" style="margin-top: 0;">
+                    <div class="tp"><div><div class="micro">Attempt</div><div class="code">PAY-ATT-0911 · visa-4821</div></div><div class="amt" style="color: var(--warn); font-size: 18px;">cancelled</div></div>
+                  </div>
+                </div>
+                <div class="foot">
+                  <button class="btn btn-primary">Try again</button>
+                  <button class="btn btn-ghost">Call waiter for help</button>
+                </div>
+              </div>
+            </div>
+            <div class="phone-home"></div>
+          </div>
+        </div>
+        <div class="screen-label"><span class="num">9</span><span class="title">Payment cancelled</span><span class="desc">session stays open</span></div>
+      </div>
+
+      <!-- 10. Error -->
+      <div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="phone-status"><span>9:41</span><span class="r">5G ·· 􀛪</span></div>
+            <div class="phone-content">
+              <div class="c-err">
+                <div class="mark-err">!</div>
+                <h1>Something<br><em>slipped.</em></h1>
+                <p class="p">We couldn't load your session. Check the signal and try again. If it keeps happening, flag a waiter.</p>
+                <div class="code">ERR · session_not_found · trace c8e2f</div>
+                <div class="foot">
+                  <button class="btn btn-primary">Try again</button>
+                  <button class="btn btn-link">Back to the start</button>
+                </div>
+              </div>
+            </div>
+            <div class="phone-home"></div>
+          </div>
+        </div>
+        <div class="screen-label"><span class="num">10</span><span class="title">Error state</span><span class="desc">friendly fallback</span></div>
+      </div>
+
+    </div>
+  </div>
+
+</body></html>

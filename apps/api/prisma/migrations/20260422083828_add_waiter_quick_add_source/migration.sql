@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "OrderSource" ADD VALUE 'WAITER_QUICK_ADD';

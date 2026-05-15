@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<title>Login · Unified entry</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="frames.css">
+<style>
+  /* ─── Unified login screen ─── */
+  .login-screen {
+    flex: 1; display: flex; flex-direction: column;
+    background: var(--ink-0);
+    padding: 0 26px;
+  }
+  .login-brand {
+    margin-top: 24px; display: flex; align-items: center; gap: 8px;
+  }
+  .login-brand .mark {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: var(--ink-900); color: var(--ink-0);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--serif); font-weight: 800; font-size: 16px; font-style: italic;
+  }
+  .login-brand .wordmark {
+    font-family: var(--serif); font-weight: 700; font-size: 16px; letter-spacing: -0.01em;
+  }
+  .login-hero {
+    margin-top: 48px;
+  }
+  .login-hero .eyebrow { color: var(--accent); }
+  .login-hero h1 {
+    margin: 14px 0 10px;
+    font-family: var(--serif); font-weight: 800;
+    font-size: 44px; line-height: 1; letter-spacing: -0.025em;
+  }
+  .login-hero h1 em {
+    font-style: italic; font-weight: 500; color: var(--accent);
+    display: block; margin-top: 2px;
+  }
+  .login-hero p {
+    margin: 0; font-size: 13px; color: var(--ink-500); line-height: 1.55; max-width: 260px;
+  }
+  .login-form { margin-top: 36px; }
+  .field { position: relative; }
+  .field-label {
+    position: absolute; top: -7px; left: 12px; background: var(--ink-0);
+    padding: 0 6px; font-family: var(--mono); font-size: 10px;
+    color: var(--ink-500); font-weight: 500;
+  }
+  .field-input {
+    width: 100%; padding: 16px 14px; border: 1px solid var(--ink-300);
+    border-radius: var(--r-md); background: var(--ink-0);
+    font-family: var(--sans); font-size: 15px; font-weight: 500; color: var(--ink-900);
+    outline: none;
+  }
+  .field-input:focus-visible { border-color: var(--accent); }
+  .field-hint {
+    margin-top: 8px; display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10px; color: var(--ink-500);
+  }
+  .field-hint .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+  /* route detection pill */
+  .route-pill {
+    margin-top: 14px; padding: 12px; border: 1px dashed var(--ink-300);
+    border-radius: var(--r-md); display: flex; align-items: center; gap: 10px;
+  }
+  .route-pill .arrow { font-family: var(--serif); font-style: italic; color: var(--accent); }
+  .route-pill .label { font-size: 12px; color: var(--ink-700); line-height: 1.35; }
+  .route-pill .label strong { color: var(--ink-900); font-weight: 700; }
+
+  .login-cta { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
+  .login-cta .btn { width: 100%; padding: 15px; font-size: 14px; }
+
+  .login-foot {
+    margin-top: auto; padding: 20px 0; text-align: center;
+    font-family: var(--mono); font-size: 10px; color: var(--ink-500);
+  }
+  .login-foot a { color: var(--ink-900); text-decoration: underline; text-underline-offset: 3px; }
+
+  .login-divider {
+    margin: 18px 0; display: flex; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 9px; color: var(--ink-400); text-transform: uppercase; letter-spacing: 0.15em;
+  }
+  .login-divider::before, .login-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--ink-200);
+  }
+
+  /* OTP row */
+  .otp-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  .otp-cell {
+    aspect-ratio: 3/4; border: 1px solid var(--ink-300); border-radius: var(--r-md);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--serif); font-weight: 700; font-size: 24px;
+  }
+  .otp-cell.filled { border-color: var(--ink-900); background: var(--ink-900); color: var(--ink-0); }
+
+  /* ─── Layout: 3 variants side-by-side ─── */
+  .login-variants {
+    max-width: 1400px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(3, 320px); gap: 40px;
+    justify-content: center;
+  }
+
+  /* Desktop version — for admin */
+  .desktop-login {
+    max-width: 1400px; margin: 80px auto 0;
+  }
+  .dl-wrap {
+    display: grid; grid-template-columns: 1fr 1fr;
+    min-height: 600px; border: var(--line); border-radius: var(--r-xl);
+    overflow: hidden; background: var(--ink-0);
+  }
+  .dl-visual {
+    background: var(--ink-900); color: var(--ink-0);
+    padding: 48px;
+    display: flex; flex-direction: column;
+    position: relative; overflow: hidden;
+  }
+  .dl-visual::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 80%, rgba(249,115,22,0.25), transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(249,115,22,0.12), transparent 55%);
+  }
+  .dl-visual > * { position: relative; z-index: 1; }
+  .dl-visual .brand { display: flex; align-items: center; gap: 10px; }
+  .dl-visual .brand .mark { width: 32px; height: 32px; border-radius: 6px; background: var(--accent); color: var(--ink-900); display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-weight: 800; font-size: 18px; font-style: italic; }
+  .dl-visual .brand .wm { font-family: var(--serif); font-weight: 700; font-size: 18px; }
+  .dl-visual .quote {
+    margin-top: auto; font-family: var(--serif); font-style: italic;
+    font-size: 32px; line-height: 1.2; font-weight: 500; letter-spacing: -0.01em;
+    max-width: 420px;
+  }
+  .dl-visual .quote-attr {
+    margin-top: 24px; font-family: var(--mono); font-size: 11px;
+    color: rgba(255,255,255,0.6); letter-spacing: 0.08em;
+  }
+  .dl-form {
+    padding: 64px 56px; display: flex; flex-direction: column; justify-content: center;
+  }
+  .dl-form .eyebrow { color: var(--accent); }
+  .dl-form h1 { margin: 14px 0 10px; font-family: var(--serif); font-weight: 800; font-size: 40px; letter-spacing: -0.02em; line-height: 1; }
+  .dl-form h1 em { font-style: italic; font-weight: 500; color: var(--accent); }
+  .dl-form .sub { margin: 0 0 32px; font-size: 14px; color: var(--ink-500); line-height: 1.5; max-width: 380px; }
+  .dl-form .field + .field { margin-top: 18px; }
+  .dl-form .login-cta { margin-top: 24px; max-width: 380px; }
+
+  /* section labels */
+  .section-gap {
+    max-width: 1400px; margin: 80px auto 32px;
+    display: flex; align-items: baseline; gap: 16px;
+    padding-bottom: 16px; border-bottom: 1px solid var(--ink-200);
+  }
+  .section-gap h2 {
+    margin: 0; font-family: var(--serif); font-weight: 700; font-size: 28px; letter-spacing: -0.015em;
+  }
+  .section-gap h2 em { font-style: italic; font-weight: 500; color: var(--accent); }
+  .section-gap .n { font-family: var(--mono); font-size: 12px; color: var(--ink-500); }
+</style>
+</head>
+<body class="canvas">
+  <div class="canvas-head">
+    <h1>Unified <em>Login</em></h1>
+    <div class="meta">One entry for all surfaces<br>customer · waiter · kitchen · admin</div>
+  </div>
+
+  <div class="section-gap">
+    <h2>Mobile <em>variants</em></h2>
+    <div class="n">/ phone-first · auto-detects credential type</div>
+  </div>
+
+  <div class="login-variants">
+
+    <!-- Variant 1 · Initial state -->
+    <div>
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="phone-notch"></div>
+          <div class="phone-status"><span>9:41</span><span class="r"><span>5G</span><span>􀛪</span><span>􀛨</span></span></div>
+          <div class="phone-content">
+            <div class="login-screen">
+              <div class="login-brand">
+                <div class="mark">R</div>
+                <div class="wordmark">Restaurant <em class="serif-it">OS</em></div>
+              </div>
+              <div class="login-hero">
+                <div class="eyebrow">Welcome</div>
+                <h1>Good<br><em>evening.</em></h1>
+                <p>One door. Customer, staff, owner — enter your phone, email, or staff PIN.</p>
+              </div>
+              <div class="login-form">
+                <div class="field">
+                  <label class="field-label">Phone · email · staff PIN</label>
+                  <input class="field-input" placeholder="Start typing…">
+                </div>
+                <div class="field-hint"><span class="live-dot"></span>We'll figure out who you are from the format.</div>
+
+                <div class="login-cta">
+                  <button class="btn btn-primary btn-lg">Continue</button>
+                  <button class="btn btn-link">Continue as guest instead</button>
+                </div>
+              </div>
+              <div class="login-foot">By continuing you accept the <a>terms</a> &amp; <a>privacy</a> policy.</div>
+            </div>
+          </div>
+          <div class="phone-home"></div>
+        </div>
+      </div>
+      <div class="screen-label">
+        <span class="num">1</span>
+        <span class="title">Entry</span>
+        <span class="desc">blank state · universal prompt</span>
+      </div>
+    </div>
+
+    <!-- Variant 2 · Phone detected (customer route) -->
+    <div>
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="phone-notch"></div>
+          <div class="phone-status"><span>9:41</span><span class="r"><span>5G</span><span>􀛪</span><span>􀛨</span></span></div>
+          <div class="phone-content">
+            <div class="login-screen">
+              <div class="login-brand">
+                <div class="mark">R</div>
+                <div class="wordmark">Restaurant <em class="serif-it">OS</em></div>
+              </div>
+              <div class="login-hero">
+                <div class="eyebrow" style="color: var(--accent);">Phone detected</div>
+                <h1>Hi there,<br><em>stranger.</em></h1>
+                <p>We'll text you a 6-digit code. Takes a second.</p>
+              </div>
+              <div class="login-form">
+                <div class="field">
+                  <label class="field-label">Phone number</label>
+                  <input class="field-input" value="+1 (415) 555 0142">
+                </div>
+                <div class="route-pill">
+                  <div class="arrow">→</div>
+                  <div class="label"><strong>Customer</strong> · You'll be routed to your table's menu after verify.</div>
+                </div>
+                <div class="login-cta">
+                  <button class="btn btn-primary btn-lg">Text me the code</button>
+                  <button class="btn btn-ghost">Change number</button>
+                </div>
+              </div>
+              <div class="login-foot">Not a customer? Enter your <a>email or PIN</a> instead.</div>
+            </div>
+          </div>
+          <div class="phone-home"></div>
+        </div>
+      </div>
+      <div class="screen-label">
+        <span class="num">2</span>
+        <span class="title">Phone → Customer</span>
+        <span class="desc">auto-routed via format</span>
+      </div>
+    </div>
+
+    <!-- Variant 3 · OTP verify -->
+    <div>
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="phone-notch"></div>
+          <div class="phone-status"><span>9:41</span><span class="r"><span>5G</span><span>􀛪</span><span>􀛨</span></span></div>
+          <div class="phone-content">
+            <div class="login-screen">
+              <div class="login-brand">
+                <div class="mark">R</div>
+                <div class="wordmark">Restaurant <em class="serif-it">OS</em></div>
+              </div>
+              <div class="login-hero">
+                <div class="eyebrow">Verify</div>
+                <h1>Six<br><em>digits.</em></h1>
+                <p>Sent to <strong style="color:var(--ink-900);">+1 (415) 555 0142</strong>. Expires in 9:47.</p>
+              </div>
+              <div class="login-form">
+                <div class="otp-row">
+                  <div class="otp-cell filled">4</div>
+                  <div class="otp-cell filled">9</div>
+                  <div class="otp-cell filled">2</div>
+                  <div class="otp-cell filled">1</div>
+                  <div class="otp-cell"></div>
+                  <div class="otp-cell"></div>
+                </div>
+                <div class="field-hint" style="justify-content: center; margin-top: 16px;">Didn't get it? <a style="color:var(--ink-900);margin-left:4px;text-decoration:underline;text-underline-offset:3px;">Resend in 0:24</a></div>
+                <div class="login-cta">
+                  <button class="btn btn-primary btn-lg">Verify &amp; continue</button>
+                </div>
+              </div>
+              <div class="login-foot">Wrong number? <a>Start over</a></div>
+            </div>
+          </div>
+          <div class="phone-home"></div>
+        </div>
+      </div>
+      <div class="screen-label">
+        <span class="num">3</span>
+        <span class="title">OTP verify</span>
+        <span class="desc">same layout, same door</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-gap" style="margin-top: 100px;">
+    <h2>Desktop <em>staff entry</em></h2>
+    <div class="n">/ email or 6-digit PIN · auto-routes to kitchen, waiter, or admin</div>
+  </div>
+
+  <div class="desktop-login">
+    <div class="browser" style="max-width: 1320px; margin: 0 auto;">
+      <div class="browser-bar">
+        <div class="browser-dots"><span></span><span></span><span></span></div>
+        <div class="browser-url"><span class="lock">🔒</span>app.restaurantos.co/enter</div>
+      </div>
+      <div class="browser-content" style="background: var(--ink-0); min-height: 600px;">
+        <div class="dl-wrap" style="border: 0; border-radius: 0; min-height: 600px;">
+          <div class="dl-visual">
+            <div class="brand"><div class="mark">R</div><div class="wm">Restaurant <em class="serif-it">OS</em></div></div>
+            <div class="quote">“The table, the kitchen, the books — one glass of water away from each other.”</div>
+            <div class="quote-attr">— our operating principle, 2026</div>
+          </div>
+          <div class="dl-form">
+            <div class="eyebrow" style="color: var(--accent);">Email detected · staff route</div>
+            <h1>Back at it,<br><em>chef.</em></h1>
+            <p class="sub">We spotted a staff email. Enter your 6-digit station PIN and we'll route you to your board.</p>
+            <div class="field">
+              <label class="field-label">Work email</label>
+              <input class="field-input" value="mila.chen@beachsidebistro.co">
+            </div>
+            <div class="field" style="margin-top: 18px;">
+              <label class="field-label">Station PIN</label>
+              <input class="field-input" type="password" value="••••••">
+            </div>
+            <div class="route-pill" style="margin-top: 18px; max-width: 380px;">
+              <div class="arrow">→</div>
+              <div class="label">Routing to <strong>Kitchen · Station 2 (Grill)</strong> · last seen 14m ago.</div>
+            </div>
+            <div class="login-cta">
+              <button class="btn btn-primary btn-lg">Enter station</button>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-ghost" style="flex:1;">Forgot PIN</button>
+                <button class="btn btn-ghost" style="flex:1;">Switch role</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width: 1400px; margin: 32px auto 0; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--ink-500);">
+    <div>Format rules: <span style="color:var(--ink-900);">+international</span> → customer · <span style="color:var(--ink-900);">name@domain</span> → staff · <span style="color:var(--ink-900);">6 digits</span> → quick-PIN kiosk</div>
+    <div>1 door · 4 routes</div>
+  </div>
+
+</body></html>

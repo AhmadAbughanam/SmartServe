@@ -1,0 +1,47 @@
+{
+  "name": "smart-restaurant-os",
+  "private": true,
+  "packageManager": "npm@11.6.4",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20 <23",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "bootstrap": "powershell -ExecutionPolicy Bypass -File ./scripts/bootstrap.ps1",
+    "dev:web": "npm run dev --workspace @smart-restaurant/web",
+    "dev:api": "npm run dev --workspace @smart-restaurant/api",
+    "dev:infra": "docker compose up -d postgres redis",
+    "dev:down": "docker compose down",
+    "build": "npm run build --workspaces --if-present",
+    "build:api": "npm run build --workspace @smart-restaurant/api",
+    "build:web": "npm run build --workspace @smart-restaurant/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck:api": "npm run typecheck --workspace @smart-restaurant/api",
+    "typecheck:web": "npm run typecheck --workspace @smart-restaurant/web",
+    "test": "npm run test --workspaces --if-present",
+    "test:critical": "npm run test:critical --workspace @smart-restaurant/api",
+    "smoke": "node scripts/smoke-test.mjs",
+    "smoke:health": "node scripts/health-check.mjs",
+    "seed": "npm run seed --workspace @smart-restaurant/api",
+    "prisma:generate": "npm run prisma:generate --workspace @smart-restaurant/api",
+    "prisma:migrate": "npm run prisma:migrate:dev --workspace @smart-restaurant/api",
+    "prisma:validate": "npm run prisma:validate --workspace @smart-restaurant/api",
+    "e2e": "npx playwright test",
+    "e2e:ui": "npx playwright test --ui",
+    "test:all": "npm run typecheck && npm run build --workspace @smart-restaurant/web && npm run smoke && npm run e2e",
+    "prisma:deploy": "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma",
+    "docker:prod:build": "docker compose -f docker-compose.prod.yml --env-file .env.production build",
+    "docker:prod:up": "docker compose -f docker-compose.prod.yml --env-file .env.production up -d",
+    "docker:prod:down": "docker compose -f docker-compose.prod.yml --env-file .env.production down",
+    "docker:prod:logs": "docker compose -f docker-compose.prod.yml logs -f",
+    "db:backup": "powershell -ExecutionPolicy Bypass -File ./scripts/backup-postgres.ps1",
+    "db:restore": "powershell -ExecutionPolicy Bypass -File ./scripts/restore-postgres.ps1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
+  }
+}
