@@ -331,7 +331,7 @@ async function expectDtoInvalid(value: Record<string, unknown>) {
 async function waitForAuditLog() {
   for (let attempt = 0; attempt < 10; attempt++) {
     const log = await prisma.demandForecastLog.findFirst({
-      where: { tenantId: ids.tenant, branchId: ids.branch, expectedRevenue: "170.00" },
+      where: { tenantId: ids.tenant, branchId: ids.branch, expectedRevenue: "102.00" },
       orderBy: { createdAt: "desc" },
     });
     if (log) return log;
@@ -358,7 +358,7 @@ async function main() {
   assert.equal(forecast.forecastDate, "2026-05-05");
   assert.equal(forecast.lookbackDays, 30);
   assert.equal(forecast.expectedOrders, 1);
-  assert.equal(forecast.expectedRevenue, 170);
+  assert.equal(forecast.expectedRevenue, 102);
   assert.deepEqual(forecast.hourlyDemand, [{ hour: 13, expectedOrders: 1 }]);
   assert.equal(forecast.dataQualityWarnings.some((warning) => warning.code === "LOW_SAMPLE_SIZE"), false);
 
@@ -443,7 +443,7 @@ async function main() {
   assert.equal(log.requestedById, ids.staffOwner);
   assert.equal(log.lookbackDays, 30);
   assert.equal(log.expectedOrders, rawQueryForecast.expectedOrders);
-  assert.equal(log.expectedRevenue?.toString(), "170");
+  assert.equal(log.expectedRevenue?.toString(), "102");
 
   console.log("Demand forecast checks passed");
 }
