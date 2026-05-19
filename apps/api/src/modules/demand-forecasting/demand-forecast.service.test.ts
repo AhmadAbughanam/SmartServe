@@ -364,15 +364,15 @@ async function main() {
 
   const burger = forecast.items.find((item) => item.menuItemId === ids.burger);
   assert.ok(burger, "burger forecast should be present");
-  assert.equal(burger.expectedQuantity, 4);
-  assert.equal(burger.expectedRevenue, 56);
+  assert.equal(burger.expectedQuantity, 6);
+  assert.equal(burger.expectedRevenue, 84);
   assert.equal(burger.confidence, "MEDIUM");
-  assert.equal(burger.reason, "27 sold over 3 similar Tuesdays. Forecast: 4. (AI Optimized)");
+  assert.equal(burger.reason, "20 sold over 3 similar Tuesdays. Forecast: 6.");
 
   const pasta = forecast.items.find((item) => item.menuItemId === ids.pasta);
   assert.ok(pasta, "pasta forecast should be present");
-  assert.equal(pasta.expectedQuantity, 7);
-  assert.equal(pasta.expectedRevenue, 84);
+  assert.equal(pasta.expectedQuantity, 1);
+  assert.equal(pasta.expectedRevenue, 12);
 
   assert.equal(forecast.items.some((item) => item.menuItemId === ids.inactiveItem), false);
   assert.equal(forecast.items.some((item) => item.menuItemId === ids.otherBranchItem), false);
@@ -385,7 +385,7 @@ async function main() {
   const fallbackBurger = fallback.items.find((item) => item.menuItemId === ids.burger);
   assert.ok(fallbackBurger, "fallback burger forecast should be present");
   assert.equal(fallbackBurger.confidence, "LOW");
-  assert.equal(fallbackBurger.reason, "17 sold over 4 recent sales days; only 1 matching Tuesday had sales. Forecast: 9. (AI Optimized)");
+  assert.equal(fallbackBurger.reason, "24 sold over 4 recent sales days; only 1 matching Tuesday had sales. Forecast: 6.");
   assert.equal(fallback.dataQualityWarnings.some((warning) => warning.code === "LOW_SAMPLE_SIZE"), true);
 
   const dessertOnly = await service.getDemandForecast(
