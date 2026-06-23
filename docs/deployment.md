@@ -77,9 +77,9 @@ docker compose -f docker-compose.prod.yml exec api npx tsx prisma/seed.ts
 | `npm run docker:prod:logs` | Tail logs from all services |
 | `npm run prisma:deploy` | Run migrations (from host, requires DATABASE_URL) |
 
-## CI Verification
+## CI/CD Verification
 
-GitHub Actions workflow: `.github/workflows/ci.yml`.
+GitHub Actions validation workflow: `.github/workflows/ci.yml`.
 
 The CI job runs on Ubuntu with PostgreSQL and Redis service containers. It performs:
 
@@ -93,6 +93,22 @@ The CI job runs on Ubuntu with PostgreSQL and Redis service containers. It perfo
 8. `npm run build:api`
 
 The local Windows Prisma `EPERM` issue should not apply to CI because the Ubuntu runner is not expected to hold the generated Windows query engine file open.
+
+GitHub Actions image release workflow: `.github/workflows/release-images.yml`.
+
+The release workflow runs on:
+
+- pushes to `main`
+- version tags such as `v1.0.0`
+- manual `workflow_dispatch`
+
+It publishes these images to GHCR:
+
+- `ghcr.io/<owner>/smart-restaurant-os-api`
+- `ghcr.io/<owner>/smart-restaurant-os-web`
+- `ghcr.io/<owner>/smart-restaurant-os-ai`
+
+Tags include the branch ref, Git tag, commit SHA, and `latest` on `main`.
 
 ## Environment Variables
 

@@ -51,6 +51,7 @@ services:
 
   # ── AI Services ──────────────────────────────────────
   ai:
+    image: ${AI_IMAGE:-smart-restaurant-os-ai:local}
     build:
       context: .
       dockerfile: apps/ai-services/Dockerfile
@@ -64,6 +65,7 @@ services:
 
   # ── API ──────────────────────────────────────────────
   api:
+    image: ${API_IMAGE:-smart-restaurant-os-api:local}
     build:
       context: .
       dockerfile: apps/api/Dockerfile
@@ -98,6 +100,7 @@ services:
 
   # ── Web ──────────────────────────────────────────────
   web:
+    image: ${WEB_IMAGE:-smart-restaurant-os-web:local}
     build:
       context: .
       dockerfile: apps/web/Dockerfile

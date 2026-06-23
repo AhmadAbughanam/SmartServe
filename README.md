@@ -332,4 +332,16 @@ GitHub Actions workflow at `.github/workflows/ci.yml` runs on push/PR to main:
 - Build frontend
 - Build API
 
+GitHub Actions workflow at `.github/workflows/release-images.yml` publishes production images to GHCR on pushes to `main`, version tags such as `v1.0.0`, and manual dispatch:
+- `ghcr.io/<owner>/smart-restaurant-os-api`
+- `ghcr.io/<owner>/smart-restaurant-os-web`
+- `ghcr.io/<owner>/smart-restaurant-os-ai`
+
+For a VPS that should deploy published images instead of building on-host:
+
+1. Set `API_IMAGE`, `WEB_IMAGE`, and `AI_IMAGE` in `.env.production`.
+2. Run `npm run docker:prod:pull`.
+3. Run `npm run docker:prod:up`.
+4. Run migrations and the production smoke gates as usual.
+
 `npm run smoke:health` checks the running API health endpoint without seed data. `npm run smoke` requires a running API with migrated and seeded database.
