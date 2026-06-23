@@ -9,10 +9,10 @@ import { Cloche } from "../../../components/ui";
 import type { BranchTablesResult, Session, TableAccessResult } from "../../../lib/types";
 import type { GeoFenceCheckResponse, GeoFenceLocationInput } from "@smart-restaurant/shared-types";
 
-const COPPER = "#c2841d";
-const COPPER_SOFT = "#fdf2e2";
-const COPPER_EDGE = "#f1d9a8";
-const COPPER_INK = "#7c5511";
+const COPPER = "#0c0a09";
+const COPPER_SOFT = "#f5f5f4";
+const COPPER_EDGE = "#e7e5e4";
+const COPPER_INK = "#1c1917";
 const OK = "#16a34a";
 const OK_DARK = "#15803d";
 
@@ -178,7 +178,11 @@ function StartSessionInner() {
 
   return (
     <main className="flex min-h-screen flex-col" style={{ background: "var(--ink-50)" }}>
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 pb-6 pt-7">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 pb-6 pt-7 relative">
+        <button onClick={() => router.push("/customer")} aria-label="Back" className="absolute left-5 top-7 flex h-10 w-10 items-center justify-center rounded-[12px] transition active:scale-[0.98]" style={{ background: "var(--ink-0)", border: "1px solid var(--ink-200)" }}>
+          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="var(--ink-700)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+        </button>
+
         {/* Brand */}
         <div className="text-center">
           <Cloche size={36} color={COPPER} />

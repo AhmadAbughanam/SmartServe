@@ -8,9 +8,9 @@ import { Cloche, Sprig } from "../../../../components/ui";
 import { OrderReviewForm } from "../../../../components/customer/OrderReviewForm";
 import type { Order, Review } from "../../../../lib/types";
 
-const COPPER = "#c2841d";
-const COPPER_SOFT = "#fdf2e2";
-const COPPER_EDGE = "#f1d9a8";
+const COPPER = "#0c0a09";
+const COPPER_SOFT = "#f5f5f4";
+const COPPER_EDGE = "#e7e5e4";
 const OK = "#16a34a";
 const OK_DARK = "#15803d";
 

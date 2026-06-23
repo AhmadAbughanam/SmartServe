@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { authGet, authPost, authPatch, getApiErrorMessage } from "../../../../lib/api";
-import { getStaffToken, getStaffName } from "../../../../lib/staff-auth";
+import { hasStaffSession, getStaffName } from "../../../../lib/staff-auth";
 import type { TableDetail } from "../../../../lib/waiter-types";
 import { useToast, LoadingScreen, ErrorDisplay, InlineAlert } from "../../../../components/ui";
 import Link from "next/link";
@@ -15,7 +15,6 @@ export default function CheckoutPage() {
   const { tableId } = useParams<{ tableId: string }>();
   const router = useRouter();
   const qc = useQueryClient();
-  const [token, setToken] = useState<string | null>(null);
   const [staffName, setStaffName] = useState("");
   const [payMethod, setPayMethod] = useState<"CASH" | "CARD" | "WALLET">("CASH");
   const [splitMode, setSplitMode] = useState<"none" | "equal" | "custom">("none");
@@ -29,12 +28,12 @@ export default function CheckoutPage() {
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => { const t = getStaffToken("waiter"); if (!t) { router.push("/waiter/login"); return; } setToken(t); setStaffName(getStaffName("waiter") ?? ""); }, [router]);
+  useEffect(() => { if (!hasStaffSession("waiter")) { router.push("/waiter/login"); return; } setStaffName(getStaffName("waiter") ?? ""); }, [router]);
 
   const { data: detail, isLoading, error, refetch } = useQuery({
     queryKey: ["waiter-table-detail", tableId],
-    queryFn: () => authGet<TableDetail>(`/api/waiter/tables/${tableId}`, token!),
-    enabled: !!token,
+    queryFn: () => authGet<TableDetail>(`/api/waiter/tables/${tableId}`),
+    enabled: true,
   });
 
   if (isLoading) return <LoadingScreen message="Loading checkout..." />;
@@ -54,12 +53,12 @@ export default function CheckoutPage() {
   const perPerson = splitMode === "equal" && splitCount > 0 ? total / splitCount : total;
 
   async function handleApplySurcharge() {
-    if (!token || !surchargeAmount || serviceCharge <= 0 || payableOrders.length === 0) return;
+    if (!surchargeAmount || serviceCharge <= 0 || payableOrders.length === 0) return;
     setBusy(true);
     setPaymentError(null);
     try {
       for (const o of payableOrders) {
-        await authPatch(`/api/waiter/orders/${o.id}/surcharge`, token, { amount: serviceCharge / payableOrders.length });
+        await authPatch(`/api/waiter/orders/${o.id}/surcharge`, undefined, { amount: serviceCharge / payableOrders.length });
       }
       setSurchargeApplied(true);
       toast("Surcharge applied");
@@ -69,7 +68,7 @@ export default function CheckoutPage() {
   }
 
   async function handlePayment() {
-    if (!token || payableOrders.length === 0) return;
+    if (payableOrders.length === 0) return;
     setBusy(true);
     setPaymentError(null);
     try {
@@ -78,7 +77,7 @@ export default function CheckoutPage() {
         const ep = payMethod === "CASH" ? "cash-confirm" : "terminal-confirm";
         for (const o of payableOrders) {
           if (o.paymentStatus !== "PAID") {
-            await authPost(`/api/waiter/orders/${o.id}/payments/${ep}`, token, {
+            await authPost(`/api/waiter/orders/${o.id}/payments/${ep}`, undefined, {
               tipAmount: tip > 0 ? tip / payableOrders.length : undefined,
             });
           }
@@ -87,7 +86,7 @@ export default function CheckoutPage() {
         // Use split payment endpoint for each order
         for (const o of payableOrders) {
           if (o.paymentStatus !== "PAID") {
-            await authPost(`/api/orders/${o.id}/payments/splits`, token, {
+            await authPost(`/api/orders/${o.id}/payments/splits`, undefined, {
               splitType: "BY_PEOPLE",
               count: splitCount,
             });
@@ -96,7 +95,7 @@ export default function CheckoutPage() {
       }
 
       // Clear the table
-      await authPost(`/api/waiter/tables/${tableId}/clear`, token);
+      await authPost(`/api/waiter/tables/${tableId}/clear`);
       setPaid(true);
       toast("Payment processed & table cleared");
       qc.invalidateQueries({ queryKey: ["waiter-floor"] });

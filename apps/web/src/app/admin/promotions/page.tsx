@@ -3,7 +3,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { authDelete, authGet, authPost, authPatch } from "../../../lib/api";
-import { getStaffToken } from "../../../lib/staff-auth";
 import { LoadingScreen, EmptyState, useToast } from "../../../components/ui";
 
 const sv = { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
@@ -29,7 +28,6 @@ const ROWS_PER_PAGE = 10;
 
 export default function AdminPromotionsPage() {
   const qc = useQueryClient();
-  const [token, setToken] = useState<string | null>(null);
   const [tab, setTab] = useState<"discounts" | "coupons" | "gift-cards" | "loyalty">("discounts");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("name-asc");
@@ -58,14 +56,12 @@ export default function AdminPromotionsPage() {
   const [lrName, setLrName] = useState(""); const [lrCost, setLrCost] = useState(""); const [lrValue, setLrValue] = useState("");
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { setToken(getStaffToken()); }, []);
-
-  const { data: discounts, isLoading: dl } = useQuery({ queryKey: ["promo-discounts"], queryFn: () => authGet<Discount[]>("/api/promotions/discounts", token!), enabled: !!token });
-  const { data: coupons } = useQuery({ queryKey: ["promo-coupons"], queryFn: () => authGet<Coupon[]>("/api/promotions/coupons", token!), enabled: !!token });
-  const { data: giftCards } = useQuery({ queryKey: ["promo-gift-cards"], queryFn: () => authGet<GiftCard[]>("/api/promotions/gift-cards", token!), enabled: !!token });
-  const { data: loyaltyProgram, isLoading: loyaltyLoading, error: loyaltyError } = useQuery({ queryKey: ["loyalty-program"], queryFn: () => authGet<LoyaltyProgram>("/api/admin/loyalty/program", token!), enabled: !!token });
-  const { data: loyaltyRewards } = useQuery({ queryKey: ["loyalty-rewards"], queryFn: () => authGet<LoyaltyReward[]>("/api/admin/loyalty/rewards", token!), enabled: !!token });
-  const { data: loyaltyMembers } = useQuery({ queryKey: ["loyalty-members"], queryFn: () => authGet<LoyaltyMembersResponse>("/api/admin/loyalty/members", token!), enabled: !!token });
+  const { data: discounts, isLoading: dl } = useQuery({ queryKey: ["promo-discounts"], queryFn: () => authGet<Discount[]>("/api/promotions/discounts") });
+  const { data: coupons } = useQuery({ queryKey: ["promo-coupons"], queryFn: () => authGet<Coupon[]>("/api/promotions/coupons") });
+  const { data: giftCards } = useQuery({ queryKey: ["promo-gift-cards"], queryFn: () => authGet<GiftCard[]>("/api/promotions/gift-cards") });
+  const { data: loyaltyProgram, isLoading: loyaltyLoading, error: loyaltyError } = useQuery({ queryKey: ["loyalty-program"], queryFn: () => authGet<LoyaltyProgram>("/api/admin/loyalty/program") });
+  const { data: loyaltyRewards } = useQuery({ queryKey: ["loyalty-rewards"], queryFn: () => authGet<LoyaltyReward[]>("/api/admin/loyalty/rewards") });
+  const { data: loyaltyMembers } = useQuery({ queryKey: ["loyalty-members"], queryFn: () => authGet<LoyaltyMembersResponse>("/api/admin/loyalty/members") });
 
   useEffect(() => {
     if (!loyaltyProgram) return;
@@ -95,27 +91,27 @@ export default function AdminPromotionsPage() {
   }
 
   async function saveDiscount() {
-    if (!token || !dName || !dValue) return; setBusy(true);
+    if (!dName || !dValue) return; setBusy(true);
     try {
       if (editingId) {
-        await authPatch(`/api/promotions/discounts/${editingId}`, token, { name: dName, description: dDesc || undefined, value: parseFloat(dValue), scope: dScope, startAt: dStartAt || undefined, endAt: dEndAt || undefined, isActive: dActive });
+        await authPatch(`/api/promotions/discounts/${editingId}`, undefined, { name: dName, description: dDesc || undefined, value: parseFloat(dValue), scope: dScope, startAt: dStartAt || undefined, endAt: dEndAt || undefined, isActive: dActive });
         toast("Discount updated");
       } else {
-        await authPost("/api/promotions/discounts", token, { name: dName, description: dDesc || undefined, type: dType, value: parseFloat(dValue), scope: dScope, startAt: dStartAt || undefined, endAt: dEndAt || undefined });
+        await authPost("/api/promotions/discounts", undefined, { name: dName, description: dDesc || undefined, type: dType, value: parseFloat(dValue), scope: dScope, startAt: dStartAt || undefined, endAt: dEndAt || undefined });
         toast("Discount created");
       }
       qc.invalidateQueries({ queryKey: ["promo-discounts"] }); setSideOpen(false); resetForm();
     } catch (e) { toast(e instanceof Error ? e.message : "Failed", "error"); } finally { setBusy(false); }
   }
   async function saveCoupon() {
-    if (!token || !cCode || !cDiscountId) return; setBusy(true);
+    if (!cCode || !cDiscountId) return; setBusy(true);
     try {
       const payload = { code: cCode, discountId: cDiscountId, maxRedemptions: cMaxR ? parseInt(cMaxR) : undefined, perUserLimit: cPerUser ? parseInt(cPerUser) : undefined, expiresAt: cExpiresAt || undefined, isActive: cActive };
       if (editingId) {
-        await authPatch(`/api/promotions/coupons/${editingId}`, token, payload);
+        await authPatch(`/api/promotions/coupons/${editingId}`, undefined, payload);
         toast("Coupon updated");
       } else {
-        await authPost("/api/promotions/coupons", token, payload);
+        await authPost("/api/promotions/coupons", undefined, payload);
         toast("Coupon created");
       }
       qc.invalidateQueries({ queryKey: ["promo-coupons"] }); setSideOpen(false); resetForm();
@@ -123,13 +119,13 @@ export default function AdminPromotionsPage() {
     catch (e) { toast(e instanceof Error ? e.message : "Failed", "error"); } finally { setBusy(false); }
   }
   async function saveGiftCard() {
-    if (!token || !gCode || !gAmount) return; setBusy(true);
+    if (!gCode || !gAmount) return; setBusy(true);
     try {
       if (editingId) {
-        await authPatch(`/api/promotions/gift-cards/${editingId}`, token, { status: gStatus, expiresAt: gExpiresAt || undefined });
+        await authPatch(`/api/promotions/gift-cards/${editingId}`, undefined, { status: gStatus, expiresAt: gExpiresAt || undefined });
         toast("Gift card updated");
       } else {
-        await authPost("/api/promotions/gift-cards", token, { code: gCode, initialAmount: parseFloat(gAmount), expiresAt: gExpiresAt || undefined });
+        await authPost("/api/promotions/gift-cards", undefined, { code: gCode, initialAmount: parseFloat(gAmount), expiresAt: gExpiresAt || undefined });
         toast("Gift card created");
       }
       qc.invalidateQueries({ queryKey: ["promo-gift-cards"] }); setSideOpen(false); resetForm();
@@ -137,12 +133,11 @@ export default function AdminPromotionsPage() {
     catch (e) { toast(e instanceof Error ? e.message : "Failed", "error"); } finally { setBusy(false); }
   }
   async function deletePromotion(kind: "discounts" | "coupons" | "gift-cards", id: string) {
-    if (!token) return;
     const label = kind === "discounts" ? "discount" : kind === "coupons" ? "coupon" : "gift card";
     if (!window.confirm(`Delete this ${label}? Used records will be disabled to preserve history.`)) return;
     setBusy(true);
     try {
-      await authDelete(`/api/promotions/${kind}/${id}`, token);
+      await authDelete(`/api/promotions/${kind}/${id}`);
       qc.invalidateQueries({ queryKey: ["promo-discounts"] });
       qc.invalidateQueries({ queryKey: ["promo-coupons"] });
       qc.invalidateQueries({ queryKey: ["promo-gift-cards"] });
@@ -151,9 +146,9 @@ export default function AdminPromotionsPage() {
     } catch (e) { toast(e instanceof Error ? e.message : "Failed", "error"); } finally { setBusy(false); }
   }
   async function saveLoyaltyProgram() {
-    if (!token) return; setBusy(true);
+    setBusy(true);
     try {
-      await authPatch("/api/admin/loyalty/program", token, {
+      await authPatch("/api/admin/loyalty/program", undefined, {
         name: lName || "Default Loyalty Program",
         pointsPerCurrency: parseFloat(lEarnRate),
         pointsPerReward: parseInt(lRewardPoints),
@@ -166,9 +161,9 @@ export default function AdminPromotionsPage() {
     } catch (e) { toast(e instanceof Error ? e.message : "Failed", "error"); } finally { setBusy(false); }
   }
   async function createLoyaltyReward() {
-    if (!token || !lrName || !lrCost || !lrValue) return; setBusy(true);
+    if (!lrName || !lrCost || !lrValue) return; setBusy(true);
     try {
-      await authPost("/api/admin/loyalty/rewards", token, { name: lrName, pointsCost: parseInt(lrCost), rewardValue: parseFloat(lrValue), isActive: true });
+      await authPost("/api/admin/loyalty/rewards", undefined, { name: lrName, pointsCost: parseInt(lrCost), rewardValue: parseFloat(lrValue), isActive: true });
       setLrName(""); setLrCost(""); setLrValue("");
       qc.invalidateQueries({ queryKey: ["loyalty-rewards"] });
       qc.invalidateQueries({ queryKey: ["loyalty-program"] });
@@ -176,19 +171,18 @@ export default function AdminPromotionsPage() {
     } catch (e) { toast(e instanceof Error ? e.message : "Failed", "error"); } finally { setBusy(false); }
   }
   async function toggleLoyaltyReward(reward: LoyaltyReward) {
-    if (!token) return; setBusy(true);
+    setBusy(true);
     try {
-      await authPatch(`/api/admin/loyalty/rewards/${reward.id}`, token, { isActive: !reward.isActive });
+      await authPatch(`/api/admin/loyalty/rewards/${reward.id}`, undefined, { isActive: !reward.isActive });
       qc.invalidateQueries({ queryKey: ["loyalty-rewards"] });
       toast(reward.isActive ? "Reward paused" : "Reward activated");
     } catch (e) { toast(e instanceof Error ? e.message : "Failed", "error"); } finally { setBusy(false); }
   }
   async function deleteLoyaltyReward(id: string) {
-    if (!token) return;
     if (!window.confirm("Delete this loyalty reward? Used rewards will be disabled to preserve history.")) return;
     setBusy(true);
     try {
-      await authDelete(`/api/admin/loyalty/rewards/${id}`, token);
+      await authDelete(`/api/admin/loyalty/rewards/${id}`);
       qc.invalidateQueries({ queryKey: ["loyalty-rewards"] });
       qc.invalidateQueries({ queryKey: ["loyalty-program"] });
       toast("Loyalty reward deleted");

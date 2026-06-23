@@ -54,8 +54,9 @@ RUN apk add --no-cache python3 make g++ \
     && npm ci --omit=dev \
     && apk del python3 make g++
 
-# Copy compiled output
-COPY --from=build /app/apps/api/dist apps/api/dist
+# Copy compiled output. The workspace build emits under dist/apps/api/src
+# because the root tsconfig is shared across the monorepo.
+COPY --from=build /app/apps/api/dist/apps/api/src apps/api/dist
 
 # Copy Prisma schema + generated client
 COPY --from=build /app/apps/api/prisma apps/api/prisma

@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { authGet } from "../../../lib/api";
-import { getSelectedBranchId, getStaffBranchId, getStaffRole, getStaffToken } from "../../../lib/staff-auth";
+import { getSelectedBranchId, getStaffBranchId, getStaffRole, hasStaffSession } from "../../../lib/staff-auth";
 
 type Tab = "operational" | "payments" | "audit";
 
@@ -52,7 +52,7 @@ export default function AdminLogsPage() {
   const [tab, setTab] = useState<Tab>("operational");
   const [from, setFrom] = useState(dateInput(7));
   const [to, setTo] = useState(dateInput(0));
-  const token = typeof window !== "undefined" ? getStaffToken() : null;
+  const hasSession = typeof window !== "undefined" ? hasStaffSession() : false;
   const role = typeof window !== "undefined" ? getStaffRole() : null;
   const branchId = typeof window !== "undefined" ? (getSelectedBranchId() ?? getStaffBranchId()) : null;
   const canViewTenant = role === "OWNER" || role === "MANAGER";
@@ -65,8 +65,8 @@ export default function AdminLogsPage() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-logs", path],
-    queryFn: () => authGet<LogRow[]>(path, token!),
-    enabled: !!token,
+    queryFn: () => authGet<LogRow[]>(path),
+    enabled: hasSession,
   });
 
   const rows = data ?? [];

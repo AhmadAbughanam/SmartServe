@@ -7,13 +7,14 @@ import { get, post, getApiErrorMessage } from "../../../../../lib/api";
 import { useCart, cartSubtotal } from "../../../../../lib/cart-store";
 import { RecommendedForYou } from "../../../../../components/recommendations/RecommendedForYou";
 import { EmptyState, Cloche, InlineAlert } from "../../../../../components/ui";
+import { resolveAssetUrl } from "../../../../../lib/media";
 import type { Order, MenuCategory } from "../../../../../lib/types";
 
 /* Burnished copper for the customer ordering screens. */
-const COPPER = "#c2841d";
-const COPPER_SOFT = "#fdf2e2";
-const COPPER_EDGE = "#f1d9a8";
-const COPPER_INK = "#7c5511";
+const COPPER = "#0c0a09";
+const COPPER_SOFT = "#f5f5f4";
+const COPPER_EDGE = "#e7e5e4";
+const COPPER_INK = "#1c1917";
 
 /* Cart preview rates — display only.
    Actual amounts are computed by the backend on order submission. These rates
@@ -30,7 +31,7 @@ const photoGradients = [
   "linear-gradient(135deg, #713f12, #422006)",
 ];
 function photoGrad(id: string) { let h = 0; for (const c of id) h = ((h << 5) - h + c.charCodeAt(0)) | 0; return photoGradients[Math.abs(h) % photoGradients.length]; }
-function imgUrl(url: string | null | undefined) { if (!url) return null; return url.startsWith("/") ? `http://localhost:4000${url}` : url; }
+function imgUrl(url: string | null | undefined) { return resolveAssetUrl(url); }
 
 /* ── Top bar ──────────────────────────────────────── */
 function TopBar({ cartCount, onBack }: { cartCount: number; onBack: () => void }) {

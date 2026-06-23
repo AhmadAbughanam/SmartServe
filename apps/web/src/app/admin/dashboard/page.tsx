@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { authGet, getApiErrorMessage } from "../../../lib/api";
-import { getStaffToken } from "../../../lib/staff-auth";
 import { useAdminBranch } from "../branch-context";
 import type { DashboardData, MenuPerformanceItem } from "../../../lib/admin-types";
 import { BusinessInsightsPanel } from "../../../components/admin/ai/business-insights-panel";
@@ -164,12 +163,7 @@ function EmptyLine({ text }: { text: string }) {
 }
 
 export default function AdminDashboardPage() {
-  const [token, setToken] = useState<string | null>(null);
   const { branchId } = useAdminBranch();
-
-  useEffect(() => {
-    setToken(getStaffToken());
-  }, []);
 
   const today = useMemo(() => dateOnly(new Date()), []);
   const weekStart = useMemo(() => {
@@ -180,54 +174,54 @@ export default function AdminDashboardPage() {
 
   const dashboard = useQuery({
     queryKey: ["admin-dashboard-live", branchId],
-    queryFn: () => authGet<DashboardData>(`/api/analytics/dashboard?branchId=${branchId}`, token!),
-    enabled: !!token && !!branchId,
+    queryFn: () => authGet<DashboardData>(`/api/analytics/dashboard?branchId=${branchId}`),
+    enabled: !!branchId,
     refetchInterval: 15_000,
   });
 
   const kdsQueue = useQuery({
     queryKey: ["admin-dashboard-kds", branchId],
-    queryFn: () => authGet<KdsOrder[]>(`/api/kds/orders?branchId=${branchId}`, token!),
-    enabled: !!token && !!branchId,
+    queryFn: () => authGet<KdsOrder[]>(`/api/kds/orders?branchId=${branchId}`),
+    enabled: !!branchId,
     refetchInterval: 10_000,
     retry: false,
   });
 
   const insights = useQuery({
     queryKey: ["admin-dashboard-insights", branchId],
-    queryFn: () => authGet<Insights>(`/api/analytics/insights?branchId=${branchId}`, token!),
-    enabled: !!token && !!branchId,
+    queryFn: () => authGet<Insights>(`/api/analytics/insights?branchId=${branchId}`),
+    enabled: !!branchId,
     refetchInterval: 30_000,
   });
 
   const topItems = useQuery({
     queryKey: ["admin-dashboard-top-items", branchId],
     queryFn: async () => {
-      const result = await authGet<{ items: MenuPerformanceItem[] }>(`/api/analytics/menu-performance?branchId=${branchId}`, token!);
+      const result = await authGet<{ items: MenuPerformanceItem[] }>(`/api/analytics/menu-performance?branchId=${branchId}`);
       return result.items ?? [];
     },
-    enabled: !!token && !!branchId,
+    enabled: !!branchId,
     refetchInterval: 45_000,
   });
 
   const lowStock = useQuery({
     queryKey: ["admin-dashboard-low-stock", branchId],
-    queryFn: () => authGet<LowStockItem[]>(`/api/inventory/low-stock?branchId=${branchId}`, token!),
-    enabled: !!token && !!branchId,
+    queryFn: () => authGet<LowStockItem[]>(`/api/inventory/low-stock?branchId=${branchId}`),
+    enabled: !!branchId,
     refetchInterval: 30_000,
   });
 
   const recentLogs = useQuery({
     queryKey: ["admin-dashboard-activity", branchId],
-    queryFn: () => authGet<AuditEntry[]>(`/api/admin/audit-logs?branchId=${branchId}&limit=6`, token!),
-    enabled: !!token && !!branchId,
+    queryFn: () => authGet<AuditEntry[]>(`/api/admin/audit-logs?branchId=${branchId}&limit=6`),
+    enabled: !!branchId,
     refetchInterval: 20_000,
   });
 
   const snapshots = useQuery({
     queryKey: ["admin-dashboard-snapshots", branchId, weekStart, today],
-    queryFn: () => authGet<DailySnapshot[]>(`/api/analytics/snapshots/daily?branchId=${branchId}&from=${weekStart}&to=${today}`, token!),
-    enabled: !!token && !!branchId,
+    queryFn: () => authGet<DailySnapshot[]>(`/api/analytics/snapshots/daily?branchId=${branchId}&from=${weekStart}&to=${today}`),
+    enabled: !!branchId,
     refetchInterval: 60_000,
   });
 
@@ -390,7 +384,7 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="mb-6">
-          <DemandForecastPanel branchId={branchId ?? ""} token={token} />
+          <DemandForecastPanel branchId={branchId ?? ""} />
         </div>
 
         <div className="mb-6">

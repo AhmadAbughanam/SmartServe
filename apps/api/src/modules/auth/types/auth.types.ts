@@ -1,4 +1,4 @@
-import type { StaffRoleCode } from "@prisma/client";
+import type { GlobalRole, StaffRoleCode } from "@prisma/client";
 
 // ── Staff ──────────────────────────────────────────────
 
@@ -11,6 +11,27 @@ export interface StaffJwtPayload {
   type: "staff";
   iat?: number;
   exp?: number;
+}
+
+// ── SaaS owner ────────────────────────────────────────
+
+/** Payload encoded inside a global SaaS owner JWT access token. */
+export interface SaasOwnerJwtPayload {
+  sub: string;
+  email: string;
+  globalRole: GlobalRole;
+  type: "saas";
+  iat?: number;
+  exp?: number;
+}
+
+/** Resolved identity attached to authenticated SaaS owner requests. */
+export interface AuthenticatedSaasOwner {
+  userId: string;
+  name: string;
+  email: string;
+  phone: string;
+  globalRole: GlobalRole;
 }
 
 /** Resolved identity attached to every authenticated staff request. */
@@ -38,8 +59,9 @@ export interface AuthenticatedCustomer {
   userId: string;
   phone: string;
   name: string;
+  globalRole?: GlobalRole | null;
 }
 
 // ── Union ──────────────────────────────────────────────
 
-export type JwtPayload = StaffJwtPayload | CustomerJwtPayload;
+export type JwtPayload = StaffJwtPayload | CustomerJwtPayload | SaasOwnerJwtPayload;

@@ -3,7 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { get, authPost } from "../../../lib/api";
-import { getStaffToken, getStaffName, getStaffBranchId, getStaffRole, clearStaffToken } from "../../../lib/staff-auth";
+import { resolveAssetUrl } from "../../../lib/media";
+import { getStaffName, getStaffBranchId, getStaffRole, clearStaffToken, hasStaffSession } from "../../../lib/staff-auth";
 import { useAdminBranch } from "../branch-context";
 import { LoadingScreen, EmptyState, useToast } from "../../../components/ui";
 import type { MenuCategory, Order } from "../../../lib/types";
@@ -30,7 +31,6 @@ const IcoCash = <svg {...sv}><rect x="1" y="4" width="22" height="16" rx="2" /><
 const IcoPlus = <svg {...sv}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
 
 export default function PosPage() {
-  const [token, setToken] = useState<string | null>(null);
   const { branchId: adminBranchId } = useAdminBranch();
   const [staffBranchId, setStaffBranchIdLocal] = useState("");
   const branchId = adminBranchId || staffBranchId;
@@ -54,11 +54,9 @@ export default function PosPage() {
 
   useEffect(() => {
     const scope = pathname.startsWith("/waiter") ? "waiter" : "default";
-    const t = getStaffToken(scope);
     const r = getStaffRole(scope) ?? "";
-    if (!t) { router.push("/waiter/login"); return; }
+    if (!hasStaffSession(scope)) { router.push(pathname.startsWith("/waiter") ? "/waiter/login" : "/admin/login"); return; }
     if (pathname.startsWith("/admin") && r !== "CASHIER") return;
-    setToken(t);
     setStaffBranchIdLocal(getStaffBranchId(scope) ?? "");
     setStaffNameLocal(getStaffName(scope) ?? "");
     setRole(r);
@@ -89,10 +87,10 @@ export default function PosPage() {
     });
 
   async function handleCreateOrder() {
-    if (!token || !branchId || cart.length === 0) return;
+    if (!branchId || cart.length === 0) return;
     setBusy(true); setError(null);
     try {
-      const result = await authPost<Order>("/api/pos/orders", token, {
+      const result = await authPost<Order>("/api/pos/orders", undefined, {
         branchId, tableCode, guestCount,
         items: cart.map((c) => ({ menuItemId: c.menuItemId, quantity: c.quantity, additions: c.additions.map((a) => ({ additionId: a.additionId })) })),
         specialInstructions: notes || undefined,
@@ -105,24 +103,24 @@ export default function PosPage() {
   }
 
   async function handlePayment() {
-    if (!token || !order) return;
+    if (!order) return;
     setBusy(true); setError(null);
-    try { await authPost(`/api/orders/${order.id}/payments`, token, { amount: parseFloat(payAmount), paymentMethod: payMethod }); setPaymentDone(true); toast("Payment recorded"); }
+    try { await authPost(`/api/orders/${order.id}/payments`, undefined, { amount: parseFloat(payAmount), paymentMethod: payMethod }); setPaymentDone(true); toast("Payment recorded"); }
     catch (e: unknown) { setError(e instanceof Error ? e.message : "Payment failed"); toast("Payment failed", "error"); }
     finally { setBusy(false); }
   }
 
   async function handleCreateAndPay() {
-    if (!token || !branchId || cart.length === 0) return;
+    if (!branchId || cart.length === 0) return;
     setBusy(true); setError(null);
     try {
-      const result = await authPost<Order>("/api/pos/orders", token, {
+      const result = await authPost<Order>("/api/pos/orders", undefined, {
         branchId, tableCode, guestCount,
         items: cart.map((c) => ({ menuItemId: c.menuItemId, quantity: c.quantity, additions: c.additions.map((a) => ({ additionId: a.additionId })) })),
         specialInstructions: notes || undefined,
         idempotencyKey: `pos-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       });
-      await authPost(`/api/orders/${result.id}/payments`, token, { amount: parseFloat(result.totalAmount), paymentMethod: payMethod });
+      await authPost(`/api/orders/${result.id}/payments`, undefined, { amount: parseFloat(result.totalAmount), paymentMethod: payMethod });
       setOrder(result); setPaymentDone(true);
       setCart([]); setNotes("");
       toast("Order created & payment recorded");
@@ -134,7 +132,7 @@ export default function PosPage() {
 
   function imageBg(url: string | null | undefined, id: string) {
     if (!url) return grad(id);
-    const resolved = url.startsWith("/") ? `http://localhost:4000${url}` : url;
+    const resolved = resolveAssetUrl(url);
     return `url(${resolved}) center/cover`;
   }
 
@@ -199,7 +197,7 @@ export default function PosPage() {
 
   /* ── POS: Menu Grid + Cart Sidebar ── */
   if (isLoading) return <LoadingScreen message="Loading menu..." />;
-  if ((pathname.startsWith("/admin") && role !== "CASHIER") || (pathname.startsWith("/waiter") && token && role !== "CASHIER")) {
+  if ((pathname.startsWith("/admin") && role !== "CASHIER") || (pathname.startsWith("/waiter") && role !== "" && role !== "CASHIER")) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center p-6 text-center">
         <div className="max-w-sm rounded-[var(--r-lg)] p-6" style={{ background: "var(--ink-0)", border: "1px solid var(--ink-200)" }}>

@@ -2,40 +2,24 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { get, ApiError } from "../../lib/api";
-import type { TableAccessResult } from "../../lib/types";
 import { Cloche } from "../../components/ui";
 
-const COPPER = "#c2841d";
-const COPPER_SOFT = "#fdf2e2";
-const COPPER_EDGE = "#f1d9a8";
+const COPPER = "#0c0a09";
+const COPPER_SOFT = "#f5f5f4";
+const COPPER_EDGE = "#e7e5e4";
 const OK = "#16a34a";
 
 export default function CustomerCheckInPage() {
   const router = useRouter();
-  const [code, setCode] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  async function handleContinue(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmed = code.trim();
-    if (!trimmed) return;
-    setLoading(true); setError(null);
-    try {
-      // Validate the code resolves before forwarding to /customer/start.
-      await get<TableAccessResult>(`/api/table-access/${encodeURIComponent(trimmed)}`);
-      router.push(`/customer/start?code=${encodeURIComponent(trimmed)}`);
-    } catch (e) {
-      const msg = e instanceof ApiError && e.status === 404 ? "We couldn't find that code. Check and try again." :
-                   e instanceof Error ? e.message : "Invalid branch or table code";
-      setError(msg);
-    } finally { setLoading(false); }
-  }
 
   return (
     <main className="flex min-h-screen flex-col" style={{ background: "var(--ink-50)" }}>
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 pb-6 pt-7">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 pb-6 pt-7 relative">
+        <button onClick={() => router.push("/")} aria-label="Back" className="absolute left-5 top-7 flex h-10 w-10 items-center justify-center rounded-[12px] transition active:scale-[0.98]" style={{ background: "var(--ink-0)", border: "1px solid var(--ink-200)" }}>
+          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="var(--ink-700)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+        </button>
+
         {/* Brand */}
         <div className="text-center">
           <Cloche size={34} color={COPPER} />
@@ -51,9 +35,9 @@ export default function CustomerCheckInPage() {
         </div>
 
         {/* Check-in card */}
-        <form onSubmit={handleContinue} className="mt-6 rounded-[16px] p-5" style={{ background: "var(--ink-0)", border: "1px solid var(--ink-200)", boxShadow: "0 1px 3px rgba(12,10,9,0.04)" }}>
+        <section className="mt-6 rounded-[16px] p-5" style={{ background: "var(--ink-0)", border: "1px solid var(--ink-200)", boxShadow: "0 1px 3px rgba(12,10,9,0.04)" }}>
           <h3 className="text-center font-serif text-[18px] font-bold" style={{ color: "var(--ink-900)" }}>Check in to your branch</h3>
-          <p className="mt-1.5 text-center text-[11px] leading-relaxed" style={{ color: "var(--ink-500)" }}>Scan the QR code at the branch<br />or enter the branch code / table number</p>
+          <p className="mt-1.5 text-center text-[11px] leading-relaxed" style={{ color: "var(--ink-500)" }}>Scan the QR code at your table<br />to start ordering.</p>
 
           {/* QR illustration */}
           <div className="mt-4 flex justify-center">
@@ -74,7 +58,7 @@ export default function CustomerCheckInPage() {
           {/* Scan button */}
           <button
             type="button"
-            onClick={() => setError("Camera scanning isn't enabled on this device — enter your code below.")}
+            onClick={() => setError("Camera scanning is not enabled in this prototype. Use the demo table button below.")}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-[12px] py-3 text-[13px] font-semibold text-white transition active:scale-[0.98]"
             style={{ background: COPPER }}
           >
@@ -88,44 +72,10 @@ export default function CustomerCheckInPage() {
             Scan QR Code
           </button>
 
-          {/* OR divider */}
-          <div className="my-4 flex items-center gap-2.5">
-            <div className="h-px flex-1" style={{ background: "var(--ink-200)" }} />
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "var(--ink-400)" }}>OR</span>
-            <div className="h-px flex-1" style={{ background: "var(--ink-200)" }} />
-          </div>
-
-          {/* Manual input */}
-          <label className="block text-[11px] font-medium" style={{ color: "var(--ink-700)" }}>Enter Branch Code / Table Number</label>
-          <div className="mt-1.5 flex items-center rounded-[10px] px-3" style={{ background: "var(--ink-0)", border: "1px solid var(--ink-200)" }}>
-            <input
-              value={code}
-              onChange={(e) => { setCode(e.target.value); setError(null); }}
-              placeholder="e.g. BLR001 / T12"
-              className="flex-1 bg-transparent py-3 text-[13px] outline-none"
-              style={{ color: "var(--ink-900)" }}
-              autoComplete="off"
-              autoCapitalize="characters"
-            />
-            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="var(--ink-400)" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
-          </div>
-
           {error && (
             <div className="mt-3 rounded-[10px] px-3 py-2 text-[11px]" style={{ background: "var(--bad-soft)", border: "1px solid #fecaca", color: "var(--bad)" }}>{error}</div>
           )}
-
-          <button
-            type="submit"
-            disabled={loading || !code.trim()}
-            className="mt-4 w-full rounded-[12px] py-3 text-[13px] font-semibold transition disabled:opacity-50 active:scale-[0.98]"
-            style={{ background: COPPER_SOFT, color: COPPER, border: `1px solid ${COPPER_EDGE}` }}
-          >
-            {loading ? "Checking..." : "Continue"}
-          </button>
-        </form>
+        </section>
 
         {/* Info chips */}
         <div className="mt-5 grid grid-cols-3 gap-2">
@@ -143,6 +93,14 @@ export default function CustomerCheckInPage() {
 
         {/* Footer */}
         <div className="mt-auto flex flex-col items-center gap-2 pt-6">
+          <button
+            type="button"
+            onClick={() => router.push("/customer/start?branchId=seed-branch-1&tableCode=T1")}
+            className="w-full rounded-[12px] py-3 text-[13px] font-semibold text-white transition active:scale-[0.98]"
+            style={{ background: COPPER, boxShadow: "0 12px 28px -8px rgba(194,132,29,0.55)" }}
+          >
+            Open Demo Table
+          </button>
           <button onClick={() => router.push("/customer/login")} className="text-[11px] font-semibold underline underline-offset-[3px]" style={{ color: COPPER }}>
             Already have an account? Sign in
           </button>

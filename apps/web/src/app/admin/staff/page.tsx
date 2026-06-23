@@ -1,9 +1,8 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { authGet, authPost, authPatch } from "../../../lib/api";
-import { getStaffToken } from "../../../lib/staff-auth";
 import { useAdminBranch } from "../branch-context";
 import { LoadingScreen, EmptyState, ErrorDisplay, useToast } from "../../../components/ui";
 import type { StaffMember } from "../../../lib/admin-types";
@@ -23,7 +22,6 @@ function avatarGrad(role: string) {
 
 export default function AdminStaffPage() {
   const qc = useQueryClient();
-  const [token, setToken] = useState<string | null>(null);
   const { branchId } = useAdminBranch();
   const [search, setSearch] = useState("");
   const { toast } = useToast();
@@ -35,12 +33,10 @@ export default function AdminStaffPage() {
   const [fRole, setFRole] = useState<string>("WAITER"); const [fPass, setFPass] = useState(""); const [fActive, setFActive] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { setToken(getStaffToken()); }, []);
-
   const { data: staff, isLoading, error } = useQuery({
     queryKey: ["admin-staff", branchId],
-    queryFn: () => authGet<StaffMember[]>(`/api/admin/staff?branchId=${branchId}`, token!),
-    enabled: !!token && !!branchId,
+    queryFn: () => authGet<StaffMember[]>(`/api/admin/staff?branchId=${branchId}`),
+    enabled: !!branchId,
   });
 
   function resetForm() { setMode("idle"); setEditId(null); setFName(""); setFEmail(""); setFPhone(""); setFRole("WAITER"); setFPass(""); setFActive(true); }
@@ -53,15 +49,15 @@ export default function AdminStaffPage() {
   }
 
   async function handleSave() {
-    if (!token || !branchId) return;
+    if (!branchId) return;
     setSaving(true);
     try {
       if (mode === "create") {
         if (!fName || !fEmail || !fPass) { toast("Name, email, and password are required", "error"); return; }
-        await authPost("/api/admin/staff", token, { branchId, name: fName, email: fEmail, phone: fPhone, primaryRole: fRole, password: fPass });
+        await authPost("/api/admin/staff", undefined, { branchId, name: fName, email: fEmail, phone: fPhone, primaryRole: fRole, password: fPass });
         toast("Staff member created");
       } else {
-        await authPatch(`/api/admin/staff/${editId}`, token, { name: fName, email: fEmail, phone: fPhone, primaryRole: fRole, isActive: fActive });
+        await authPatch(`/api/admin/staff/${editId}`, undefined, { name: fName, email: fEmail, phone: fPhone, primaryRole: fRole, isActive: fActive });
         toast("Staff member updated");
       }
       qc.invalidateQueries({ queryKey: ["admin-staff"] });

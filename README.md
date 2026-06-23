@@ -45,7 +45,7 @@ npm install
 npm run dev:infra
 ```
 
-Starts PostgreSQL (port **5435**) and Redis (port **6380**).
+Starts PostgreSQL (port **5435**), Redis (port **6380**), and MinIO object storage (API **9000**, console **9001**).
 
 ### 3. Set up environment
 
@@ -77,11 +77,11 @@ The backend works without this service, but AI-assisted features such as menu ch
 From PowerShell:
 
 ```powershell
-cd apps/ai-services
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r apps/ai-services/requirements.txt
+cd apps/ai-services
 copy .env.example .env
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
@@ -89,11 +89,11 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 From Git Bash, macOS, or Linux:
 
 ```bash
-cd apps/ai-services
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r apps/ai-services/requirements.txt
+cd apps/ai-services
 cp .env.example .env
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
@@ -109,8 +109,8 @@ AI_SERVICE_URL=http://localhost:8000
 When returning later, reactivate the virtual environment before starting the server:
 
 ```powershell
-cd apps/ai-services
 .\.venv\Scripts\Activate.ps1
+cd apps/ai-services
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -137,11 +137,13 @@ Runs 16-point API smoke test.
 | URL | Surface | Auth |
 |---|---|---|
 | http://localhost:3000 | Home — all surfaces + credentials | None |
+| http://localhost:3000/login | Unified customer/staff login | Staff credentials or customer OTP |
 | http://localhost:3000/customer/start?branchId=seed-branch-1&tableCode=T1 | Customer ordering | Guest |
 | http://localhost:3000/customer/login | Customer OTP login | Phone |
 | http://localhost:3000/kitchen | Kitchen Display (KDS) | chef@demo.com |
 | http://localhost:3000/waiter | Waiter Dashboard | waiter@demo.com |
 | http://localhost:3000/admin | Admin / POS | owner@demo.com |
+| http://localhost:3000/saas | SaaS Owner Dashboard | saas@demo.com |
 
 ### Credentials
 
@@ -150,6 +152,7 @@ All passwords: `password123`
 | Role | Email | Access |
 |---|---|---|
 | Owner | owner@demo.com | Full admin, analytics, menu, inventory, promotions, staff, POS |
+| SaaS Owner | saas@demo.com | Global tenants, store owners, SaaS analytics, branch feature modules |
 | Cashier | cashier@demo.com | POS, payments, shifts, tills, coupons, gift cards |
 | Waiter | waiter@demo.com | Tables, sessions, service requests, KDS view, attendance |
 | Chef | chef@demo.com | KDS queue, item status controls |
@@ -175,8 +178,8 @@ npm run dev:api            # Start backend (:4000)
 npm run dev:web            # Start frontend (:3000)
 
 # AI service
-cd apps/ai-services
 .\.venv\Scripts\Activate.ps1
+cd apps/ai-services
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # Database
@@ -193,11 +196,32 @@ npm run test:critical      # Run critical backend business/security tests
 npm run build              # Build all workspaces
 npm run build:api          # Build backend only
 npm run build:web          # Build frontend only
+npm run secrets:production # Generate strong .env.production secret values
 npm run smoke:health       # Lightweight API health check; no seed data required
+npm run smoke:production -- https://your-domain  # Production edge smoke check
 npm run smoke              # 16-point API smoke test
+npm run monitoring:up      # Start production stack + monitoring/log aggregation overlay
 ```
 
 ## Production Readiness
+
+### VPS Rollout Order
+
+Use this order for any VPS staging or production-style rollout:
+
+1. Prepare `.env.production` from `.env.production.example`.
+2. Run `npm run rehearsal:production`.
+3. Start the stack with `npm run docker:prod:up`.
+4. Issue or install TLS certificates.
+5. Run `npm run rehearsal:production -- https://your-domain.com` and `npm run smoke:production -- https://your-domain.com`.
+6. Run production migrations.
+7. Seed demo data only on staging/demo VPS environments.
+8. Enable monitoring with `npm run monitoring:up`.
+
+### VPS Environment Policy
+
+- `Staging/demo VPS`: seed data allowed, `PAYMENT_PROVIDER=mock` allowed, known demo users allowed.
+- `Real production`: no seed data, no demo credentials, real `https://` domain in `FRONTEND_ORIGIN` and `CORS_ORIGINS`, real Twilio credentials, and generated non-placeholder secrets.
 
 ### Required Environment Variables
 
@@ -212,8 +236,24 @@ npm run smoke              # 16-point API smoke test
 | `PAYMENT_PROVIDER` | No | `stripe` or `mock` (default: mock) |
 | `STRIPE_SECRET_KEY` | If Stripe | Stripe secret key (sk_test_... or sk_live_...) |
 | `STRIPE_WEBHOOK_SECRET` | If Stripe | Stripe webhook signing secret (whsec_...) |
+| `SMS_PROVIDER` | Yes in production | `twilio` for production OTP delivery; `noop` only for local development |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` | If Twilio | Customer OTP SMS delivery credentials |
 
 See `.env.production.example` for full production template.
+
+Generate the repo-managed production secrets with:
+
+```bash
+npm run secrets:production
+```
+
+That covers the repo-owned secrets such as `JWT_SECRET`, `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`, `PAYMENT_WEBHOOK_SECRET`, and `GRAFANA_PASSWORD`. Domain values and Twilio credentials still come from your actual providers.
+
+Validate Twilio credentials before rollout:
+
+```bash
+npm run verify:twilio -- --env-file .env.production
+```
 
 ### Before Production Checklist
 
@@ -221,13 +261,14 @@ See `.env.production.example` for full production template.
 - [ ] Set `NODE_ENV=production`
 - [ ] Use managed PostgreSQL with SSL
 - [ ] Use managed Redis with auth
-- [ ] Enforce HTTPS via reverse proxy
-- [ ] Restrict CORS to production origins
-- [ ] Integrate SMS provider for OTP
+- [x] Enforce HTTPS via reverse proxy in production compose
+- [x] Restrict CORS to production HTTPS origins
+- [x] Integrate SMS provider adapter for OTP
+- [ ] Configure production SMS credentials
 - [ ] Configure Stripe live keys (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`)
-- [ ] Migrate auth tokens to httpOnly cookies
-- [ ] Add CSP headers
-- [ ] Add request logging / monitoring
+- [x] Migrate browser auth tokens to httpOnly cookies
+- [x] Add CSP/security headers at the public edge
+- [x] Add request IDs, request logging, and optional monitoring/log aggregation overlay
 
 ### Security Notes
 
@@ -239,11 +280,13 @@ See `.env.production.example` for full production template.
 | Inventory mutations | Hardened | Served-time decrement and manual adjustment are transactional and audited |
 | DTO validation | Active | Global ValidationPipe uses whitelist, forbidNonWhitelisted, transform |
 | AI summaries | Defensive | Real metrics are computed first; AI output is validated with fallback behavior |
-| Auth tokens | localStorage in parts of frontend | Continue migration toward httpOnly cookies for production |
-| OTP codes | Dev-mode only | `_dev_otp` gated behind `NODE_ENV=development` |
+| Auth tokens | httpOnly cookies primary; frontend stores only non-sensitive session metadata | Cookie-authenticated unsafe browser requests use signed double-submit CSRF tokens |
+| Staff sessions | Configurable finite access cookie/JWT | Staff refresh tokens intentionally deferred pending policy decision |
+| OTP codes | SMS adapter integrated | `_dev_otp` gated behind `NODE_ENV=development`; production requires Twilio config |
 | Card data | Never stored ✅ | PCI-compliant by design |
-| Rate limiting | Active ✅ | Login: 10/min, OTP: 5/min, General: 100/min |
-| CORS | Open (dev) | Whitelist origins in production |
+| Rate limiting | Active ✅ | App throttler plus Nginx edge limits on login, OTP, session start, public order creation, and public payment-intent routes |
+| CORS | Open (dev), explicit HTTPS origins required in production | Wildcards and path-based origins rejected |
+| Request tracing | Active | `X-Request-ID` is returned and included in API logs |
 | Frontend permissions | UX only | Backend remains source of truth |
 
 ## Troubleshooting
@@ -345,3 +388,9 @@ For a VPS that should deploy published images instead of building on-host:
 4. Run migrations and the production smoke gates as usual.
 
 `npm run smoke:health` checks the running API health endpoint without seed data. `npm run smoke` requires a running API with migrated and seeded database.
+
+Before a real VPS rollout, run `npm run rehearsal:production` to catch placeholder secrets, missing TLS files, broken production compose config, and edge-security regressions before exposing the stack publicly.
+
+Use demo seed data only for local development or a staging/demo VPS. Do not seed a real production database because the seed creates known demo accounts such as `owner@demo.com` and `saas@demo.com`.
+
+For real customer OTP delivery, run `npm run verify:twilio -- --env-file .env.production` before public rollout, then request a real OTP from `/login` after deployment to confirm SMS delivery.

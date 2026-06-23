@@ -1,9 +1,9 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { get, authPatch, authPost, authUpload } from "../../../lib/api";
-import { getStaffToken } from "../../../lib/staff-auth";
+import { resolveAssetUrl } from "../../../lib/media";
 import { useAdminBranch } from "../branch-context";
 import { LoadingScreen, EmptyState, useToast } from "../../../components/ui";
 import type { MenuCategory, MenuItem } from "../../../lib/types";
@@ -23,7 +23,6 @@ type AdditionForm = { name: string; priceImpact: string; isRequired: boolean; ma
 
 export default function AdminMenuPage() {
   const qc = useQueryClient();
-  const [token, setToken] = useState<string | null>(null);
   const { branchId } = useAdminBranch();
   const [busy, setBusy] = useState<string | null>(null);
   const [editItem, setEditItem] = useState<MenuItem | null>(null);
@@ -59,8 +58,6 @@ export default function AdminMenuPage() {
   const [editAdditions, setEditAdditions] = useState<AdditionForm[]>([]);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-
-  useEffect(() => { setToken(getStaffToken()); }, []);
 
   const { data: categories, isLoading } = useQuery({
     queryKey: ["admin-menu", branchId],
@@ -109,10 +106,10 @@ export default function AdminMenuPage() {
   }
 
   async function saveEdit() {
-    if (!token || !editItem) return;
+    if (!editItem) return;
     setSaving(true);
     try {
-      await authPatch(`/api/menu/items/${editItem.id}`, token, {
+      await authPatch(`/api/menu/items/${editItem.id}`, undefined, {
         categoryId: editCategoryId,
         name: editName, price: parseFloat(editPrice), description: editDesc || undefined,
         ingredients: editIngredients || undefined,
@@ -138,10 +135,10 @@ export default function AdminMenuPage() {
   }
 
   async function createItem() {
-    if (!token || !branchId || !newCategoryId || !newName || !newPrice) return;
+    if (!branchId || !newCategoryId || !newName || !newPrice) return;
     setSaving(true);
     try {
-      const created = await authPost<MenuItem>("/api/menu/items", token, {
+      const created = await authPost<MenuItem>("/api/menu/items", undefined, {
         branchId,
         categoryId: newCategoryId,
         name: newName,
@@ -170,7 +167,7 @@ export default function AdminMenuPage() {
       if (newImageFile) {
         const fd = new FormData();
         fd.append("image", newImageFile);
-        createdItem = await authUpload<MenuItem>(`/api/menu/items/${created.id}/image`, token, fd);
+        createdItem = await authUpload<MenuItem>(`/api/menu/items/${created.id}/image`, null, fd);
       }
       qc.invalidateQueries({ queryKey: ["admin-menu"] });
       toast(newImageFile ? "Menu item created with image" : "Menu item created");
@@ -189,9 +186,9 @@ export default function AdminMenuPage() {
   }
 
   async function toggle(itemId: string, isUnavailable: boolean) {
-    if (!token) return; setBusy(itemId);
+    setBusy(itemId);
     try {
-      await authPatch(`/api/menu/items/${itemId}/availability`, token, { isUnavailable: !isUnavailable });
+      await authPatch(`/api/menu/items/${itemId}/availability`, undefined, { isUnavailable: !isUnavailable });
       qc.invalidateQueries({ queryKey: ["admin-menu"] });
       toast(isUnavailable ? "Item restored" : "Item marked unavailable");
     } catch (e) { toast(e instanceof Error ? e.message : "Failed", "error"); }
@@ -286,7 +283,7 @@ export default function AdminMenuPage() {
                 {/* Thumbnail */}
                 <div className="h-9 w-9 flex-shrink-0 rounded-[var(--r-md)] overflow-hidden"
                   style={{ background: item.imageUrl
-                    ? `url(${item.imageUrl.startsWith("/") ? "http://localhost:4000" + item.imageUrl : item.imageUrl}) center/cover`
+                    ? `url(${resolveAssetUrl(item.imageUrl)}) center/cover`
                     : grad(item.id) }} />
                 {/* Name + badges */}
                 <div className="flex-1 min-w-0">
@@ -527,7 +524,7 @@ export default function AdminMenuPage() {
                 <div className="relative mb-4 overflow-hidden rounded-[var(--r-lg)]" style={{ border: "1px solid var(--ink-100)" }}>
                   <div className="h-32 w-full" style={{
                     background: editItem.imageUrl
-                      ? `url(${editItem.imageUrl.startsWith("/") ? "http://localhost:4000" + editItem.imageUrl : editItem.imageUrl}) center/cover`
+                      ? `url(${resolveAssetUrl(editItem.imageUrl)}) center/cover`
                       : grad(editItem.id),
                   }}>
                     <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.5), transparent 60%)" }} />
@@ -551,12 +548,12 @@ export default function AdminMenuPage() {
                     <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
                     <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
                       const file = e.target.files?.[0];
-                      if (!file || !token) return;
+                      if (!file) return;
                       setUploading(true);
                       try {
                         const fd = new FormData();
                         fd.append("image", file);
-                        const updated = await authUpload<MenuItem>(`/api/menu/items/${editItem.id}/image`, token, fd);
+                        const updated = await authUpload<MenuItem>(`/api/menu/items/${editItem.id}/image`, null, fd);
                         setEditItem({ ...editItem, imageUrl: updated.imageUrl });
                         qc.invalidateQueries({ queryKey: ["admin-menu"] });
                         toast("Image uploaded");

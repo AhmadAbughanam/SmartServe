@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getStaffToken, getStaffName, getStaffRole } from "../../lib/staff-auth";
+import { hasStaffSession, getStaffName, getStaffRole } from "../../lib/staff-auth";
 import Link from "next/link";
 
 type AuthState = "checking" | "authenticated" | "unauthenticated";
@@ -15,8 +15,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      const token = getStaffToken();
-      if (token) {
+      if (hasStaffSession()) {
         setStaffName(getStaffName() ?? "");
         setStaffRole(getStaffRole() ?? "");
         setAuthState("authenticated");

@@ -85,6 +85,10 @@ enum StaffRoleCode {
   KITCHEN_LEAD
 }
 
+enum GlobalRole {
+  SAAS_OWNER
+}
+
 enum NotificationType {
   ORDER_STATUS
   PROMO
@@ -286,6 +290,8 @@ model Tenant {
   demandForecastAccuracies   DemandForecastAccuracy[]
   recommendationInteractions RecommendationInteraction[]
   scheduledBusinessSummaries ScheduledBusinessSummary[]
+  subscription               TenantSubscription?
+  saasInvoices               SaasInvoice[]
 }
 
 model Branch {
@@ -376,6 +382,7 @@ model Table {
 model User {
   id                         String                      @id @default(cuid())
   tenantId                   String?
+  globalRole                 GlobalRole?
   name                       String
   phone                      String
   email                      String?
@@ -402,6 +409,7 @@ model User {
   @@index([phone])
   @@index([email])
   @@index([tenantId])
+  @@index([globalRole])
 }
 
 model Staff {
@@ -1308,6 +1316,79 @@ model BranchSettings {
   branch               Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+}
+
+model PlatformSettings {
+  id                             String   @id @default("global")
+  platformName                   String   @default("Smart Restaurant OS")
+  supportEmail                   String?
+  supportPhone                   String?
+  maintenanceModeEnabled         Boolean  @default(false)
+  maintenanceMessage             String?
+  ownerProvisioningEnabled       Boolean  @default(true)
+  auditRetentionDays             Int      @default(90)
+  defaultSystemHealthWindowHours Int      @default(24)
+  defaultRevenueRangeDays        Int      @default(30)
+  announcementJson               Json?
+  changeLogJson                  Json?
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+}
+
+enum TenantSubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELED
+}
+
+enum SaasInvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  OVERDUE
+}
+
+model TenantSubscription {
+  id                 String                   @id @default(cuid())
+  tenantId           String                   @unique
+  planCode           String
+  status             TenantSubscriptionStatus @default(TRIALING)
+  trialEndsAt        DateTime?
+  billingPeriodStart DateTime?
+  billingPeriodEnd   DateTime?
+  nextInvoiceAt      DateTime?
+  amount             Decimal                  @db.Decimal(12, 2)
+  currency           String                   @default("USD")
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  tenant             Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoices           SaasInvoice[]
+
+  @@index([status])
+  @@index([nextInvoiceAt])
+}
+
+model SaasInvoice {
+  id             String            @id @default(cuid())
+  tenantId       String
+  subscriptionId String?
+  invoiceNumber  String            @unique
+  status         SaasInvoiceStatus @default(DRAFT)
+  amount         Decimal           @db.Decimal(12, 2)
+  currency       String            @default("USD")
+  dueAt          DateTime?
+  paidAt         DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subscription   TenantSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([status, dueAt])
+  @@index([subscriptionId])
 }
 
 // 4a. Inventory stock movement audit

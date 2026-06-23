@@ -1,4 +1,4 @@
-import { Controller, ForbiddenException, Inject, Param, Req, Sse } from "@nestjs/common";
+import { Controller, ForbiddenException, Inject, Param, Req, Sse, UnauthorizedException } from "@nestjs/common";
 import { Observable, map } from "rxjs";
 import type { Request } from "express";
 import { RealtimeService } from "./realtime.service.js";
@@ -26,7 +26,7 @@ export class RealtimeController {
 
   /**
    * SSE endpoint for branch-level events.
-   * Requires staff auth — token from query param, cookie, or Authorization header.
+   * Requires staff auth — cookie first for browsers, then Bearer for API clients.
    * Validates staff belongs to the requested branch's tenant.
    */
   @Public() // Bypass global guard — we handle auth manually for SSE
@@ -35,25 +35,26 @@ export class RealtimeController {
     @Param("branchId") branchId: string,
     @Req() req: Request,
   ): Promise<Observable<MessageEvent>> {
-    // Extract token from: query param (SSE can't set headers from EventSource) > cookie > bearer
+    // Extract token from: cookie > bearer.
     const token =
-      (req.query["token"] as string) ||
       getAccessTokenFromCookie(req.cookies ?? {}) ||
       req.headers["authorization"]?.split(" ")[1];
 
     if (!token) {
-      throw new ForbiddenException("Authentication required for branch events");
+      throw new UnauthorizedException("Authentication required for branch events");
     }
 
     try {
       const payload = this.tokenService.verifyAccessToken(token);
       if (payload.type !== "staff") {
-        throw new ForbiddenException("Staff authentication required");
+        throw new UnauthorizedException("Staff authentication required");
       }
       const staff = await this.authService.resolveStaff(payload.sub);
       await this.branchAccess.assertUserCanAccessBranch(staff, branchId);
-    } catch {
-      throw new ForbiddenException("Invalid or expired token");
+    } catch (error) {
+      if (error instanceof ForbiddenException) throw error;
+      if (error instanceof UnauthorizedException) throw error;
+      throw new UnauthorizedException("Invalid or expired token");
     }
 
     return this.realtimeService.branchEvents$(branchId).pipe(

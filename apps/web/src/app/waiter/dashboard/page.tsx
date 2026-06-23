@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { authGet, authPatch, ApiError } from "../../../lib/api";
-import { getStaffToken, getStaffBranchId, getStaffName, getStaffPermissions, clearStaffToken } from "../../../lib/staff-auth";
+import { hasStaffSession, getStaffBranchId, getStaffName, getStaffPermissions, clearStaffToken } from "../../../lib/staff-auth";
 import type { ServiceRequest, WaiterTableSummary, AttentionState, StaffNotification, WaiterReadyOrder } from "../../../lib/waiter-types";
 import { useToast } from "../../../components/ui";
 
@@ -44,7 +44,6 @@ function SrIcon({ type }: { type: string }) {
 export default function WaiterDashboardPage() {
   const router = useRouter();
   const qc = useQueryClient();
-  const [token, setToken] = useState<string | null>(null);
   const [branchId, setBranchId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [activeZone, setActiveZone] = useState<string | null>(null);
@@ -53,20 +52,18 @@ export default function WaiterDashboardPage() {
   useEffect(() => {
     let active = true;
     async function loadSession() {
-    const t = getStaffToken("waiter");
     const permissions = getStaffPermissions("waiter");
     const canUseWaiter = ["tables:read", "sessions:read", "service-requests:read"].every((p) => permissions.includes(p));
-    if (!t || !canUseWaiter) {
+    if (!hasStaffSession("waiter") || !canUseWaiter) {
       clearStaffToken("waiter");
       router.push("/waiter/login");
       return;
     }
       try {
-        const session = await authGet<StaffSession>("/api/auth/me", t);
+        const session = await authGet<StaffSession>("/api/auth/me");
         const serverCanUseWaiter = ["tables:read", "sessions:read", "service-requests:read"].every((p) => session.permissions.includes(p));
         if (!serverCanUseWaiter) throw new ApiError(403, { message: "Wrong workspace session" });
         if (!active) return;
-        setToken(t);
         setBranchId(session.branchId || getStaffBranchId("waiter"));
         setName(getStaffName("waiter") ?? "");
       } catch {
@@ -80,23 +77,23 @@ export default function WaiterDashboardPage() {
 
   const { data: tables = [] } = useQuery({
     queryKey: ["waiter-floor", branchId],
-    queryFn: async () => { if (!token || !branchId) return []; try { return await authGet<WaiterTableSummary[]>(`/api/waiter/floor?branchId=${branchId}`, token); } catch (e) { if (e instanceof ApiError && (e.status === 401 || e.status === 403)) { clearStaffToken("waiter"); router.push("/waiter/login"); } return []; } },
-    enabled: !!token && !!branchId, refetchInterval: POLL,
+    queryFn: async () => { if (!branchId) return []; try { return await authGet<WaiterTableSummary[]>(`/api/waiter/floor?branchId=${branchId}`); } catch (e) { if (e instanceof ApiError && (e.status === 401 || e.status === 403)) { clearStaffToken("waiter"); router.push("/waiter/login"); } return []; } },
+    enabled: !!branchId, refetchInterval: POLL,
   });
   const { data: requests = [] } = useQuery({
     queryKey: ["waiter-requests", branchId],
-    queryFn: async () => { if (!token || !branchId) return []; try { return await authGet<ServiceRequest[]>(`/api/service-requests?branchId=${branchId}`, token); } catch (e) { if (e instanceof ApiError && (e.status === 401 || e.status === 403)) { clearStaffToken("waiter"); router.push("/waiter/login"); } return []; } },
-    enabled: !!token && !!branchId, refetchInterval: POLL,
+    queryFn: async () => { if (!branchId) return []; try { return await authGet<ServiceRequest[]>(`/api/service-requests?branchId=${branchId}`); } catch (e) { if (e instanceof ApiError && (e.status === 401 || e.status === 403)) { clearStaffToken("waiter"); router.push("/waiter/login"); } return []; } },
+    enabled: !!branchId, refetchInterval: POLL,
   });
   const { data: notifications = [] } = useQuery({
     queryKey: ["waiter-notifications", branchId],
-    queryFn: async () => { if (!token || !branchId) return []; try { return await authGet<StaffNotification[]>("/api/notifications?unreadOnly=true", token); } catch (e) { if (e instanceof ApiError && (e.status === 401 || e.status === 403)) { clearStaffToken("waiter"); router.push("/waiter/login"); } return []; } },
-    enabled: !!token && !!branchId, refetchInterval: POLL,
+    queryFn: async () => { if (!branchId) return []; try { return await authGet<StaffNotification[]>("/api/notifications?unreadOnly=true"); } catch (e) { if (e instanceof ApiError && (e.status === 401 || e.status === 403)) { clearStaffToken("waiter"); router.push("/waiter/login"); } return []; } },
+    enabled: !!branchId, refetchInterval: POLL,
   });
   const { data: readyOrders = [] } = useQuery({
     queryKey: ["waiter-ready-orders", branchId],
-    queryFn: async () => { if (!token || !branchId) return []; try { return await authGet<WaiterReadyOrder[]>(`/api/waiter/ready-orders?branchId=${branchId}`, token); } catch (e) { if (e instanceof ApiError && (e.status === 401 || e.status === 403)) { clearStaffToken("waiter"); router.push("/waiter/login"); } return []; } },
-    enabled: !!token && !!branchId, refetchInterval: POLL,
+    queryFn: async () => { if (!branchId) return []; try { return await authGet<WaiterReadyOrder[]>(`/api/waiter/ready-orders?branchId=${branchId}`); } catch (e) { if (e instanceof ApiError && (e.status === 401 || e.status === 403)) { clearStaffToken("waiter"); router.push("/waiter/login"); } return []; } },
+    enabled: !!branchId, refetchInterval: POLL,
   });
 
   const onMutated = useCallback(() => {
@@ -127,9 +124,8 @@ export default function WaiterDashboardPage() {
       router.push(`/waiter/table/${t.id}`);
       return;
     }
-    if (!token) return;
     try {
-      await authPatch(`/api/tables/${t.id}/status`, token, { status: "AVAILABLE" });
+      await authPatch(`/api/tables/${t.id}/status`, undefined, { status: "AVAILABLE" });
       toast(`${t.tableCode} ready`);
       onMutated();
     } catch (e) {
@@ -138,10 +134,9 @@ export default function WaiterDashboardPage() {
   }
 
   async function handleTakeReadyOrder(order: WaiterReadyOrder) {
-    if (!token) return;
     try {
       if (!order.assignedWaiterId) {
-        await authPatch(`/api/waiter/orders/${order.id}/claim`, token);
+        await authPatch(`/api/waiter/orders/${order.id}/claim`, undefined);
       }
       router.push(`/waiter/table/${order.tableId}`);
       onMutated();
@@ -150,7 +145,7 @@ export default function WaiterDashboardPage() {
     }
   }
 
-  if (!token) return null;
+  if (!branchId) return null;
 
   return (
     <main className="flex h-screen flex-col overflow-hidden" style={{ background: "var(--ink-50)" }}>
@@ -355,7 +350,7 @@ export default function WaiterDashboardPage() {
                     <div key={n.id} className="rounded-[6px] p-2" style={{ background: "var(--ink-0)", border: "1px solid #dcfce7" }}>
                       <div className="text-[10px] font-semibold" style={{ color: "var(--ink-900)" }}>{n.title}</div>
                       <div className="mt-0.5 text-[8px]" style={{ color: "var(--ink-500)" }}>{n.body}</div>
-                      <button onClick={async () => { try { await authPatch(`/api/notifications/${n.id}/read`, token!); onMutated(); } catch { toast("Could not dismiss notification", "error"); } }}
+                      <button onClick={async () => { try { await authPatch(`/api/notifications/${n.id}/read`); onMutated(); } catch { toast("Could not dismiss notification", "error"); } }}
                         className="mt-1.5 rounded px-2 py-0.5 text-[8px] font-bold"
                         style={{ background: "var(--ok)", color: "var(--ink-0)" }}>
                         Dismiss
@@ -384,7 +379,7 @@ export default function WaiterDashboardPage() {
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <span className="text-[7px]" style={{ color: "var(--ink-400)" }}>{timeAgo(r.createdAt)}</span>
-                      <button onClick={async () => { try { await authPatch(`/api/service-requests/${r.id}/${r.status === "NEW" ? "claim" : "complete"}`, token!); toast(r.status === "NEW" ? "Claimed" : "Done"); onMutated(); } catch (err) { toast(err instanceof Error ? err.message : "Failed", "error"); } }}
+                      <button onClick={async () => { try { await authPatch(`/api/service-requests/${r.id}/${r.status === "NEW" ? "claim" : "complete"}`); toast(r.status === "NEW" ? "Claimed" : "Done"); onMutated(); } catch (err) { toast(err instanceof Error ? err.message : "Failed", "error"); } }}
                         className="rounded px-2 py-0.5 text-[8px] font-bold" style={{ background: "var(--accent)", color: "var(--ink-0)" }}>
                         {r.status === "NEW" ? "Claim" : "Done"}
                       </button>

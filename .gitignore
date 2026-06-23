@@ -20,3 +20,9 @@ Thumbs.db
 test-results/
 .e2e-auth-cache.json
 backups/
+certbot/conf/
+certbot/www/*
+!certbot/www/.gitkeep
+nginx/ssl/*
+!nginx/ssl/.gitkeep
+docs_backup/

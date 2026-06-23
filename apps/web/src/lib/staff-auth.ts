@@ -7,6 +7,9 @@ const ROLE_KEY = "staff_role";
 const TENANT_KEY = "staff_tenant_id";
 const PERMISSIONS_KEY = "staff_permissions";
 const SELECTED_BRANCH_KEY = "admin_selected_branch";
+const AUTH_HINT_KEY = "staff_cookie_auth";
+const COOKIE_AUTH_SENTINEL = "__cookie_auth__";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
 
 export type StaffAuthScope = "default" | "waiter" | "kitchen";
 
@@ -14,17 +17,43 @@ function scopedKey(key: string, scope: StaffAuthScope = "default"): string {
   return scope === "default" ? key : `${scope}_${key}`;
 }
 
-export function getStaffToken(scope: StaffAuthScope = "default"): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(scopedKey(TOKEN_KEY, scope));
+export function hasStaffSession(scope: StaffAuthScope = "default"): boolean {
+  if (typeof window === "undefined") return false;
+  const legacyToken = localStorage.getItem(scopedKey(TOKEN_KEY, scope));
+  if (legacyToken && legacyToken !== COOKIE_AUTH_SENTINEL) {
+    localStorage.removeItem(scopedKey(TOKEN_KEY, scope));
+    localStorage.setItem(scopedKey(AUTH_HINT_KEY, scope), "1");
+    return true;
+  }
+  return Boolean(
+    localStorage.getItem(scopedKey(AUTH_HINT_KEY, scope)) === "1" ||
+    localStorage.getItem(scopedKey(BRANCH_KEY, scope)) ||
+    localStorage.getItem(scopedKey(NAME_KEY, scope)) ||
+    localStorage.getItem(scopedKey(ROLE_KEY, scope))
+  );
 }
 
-export function setStaffToken(token: string, scope: StaffAuthScope = "default"): void {
-  localStorage.setItem(scopedKey(TOKEN_KEY, scope), token);
+/**
+ * Browser compatibility helper for existing API helpers.
+ * Browser pages should treat this as a cookie-session sentinel, not a real token.
+ */
+export function getStaffToken(scope: StaffAuthScope = "default"): string | null {
+  return hasStaffSession(scope) ? COOKIE_AUTH_SENTINEL : null;
+}
+
+export function setStaffToken(_token: string, scope: StaffAuthScope = "default"): void {
+  localStorage.removeItem(scopedKey(TOKEN_KEY, scope));
+  localStorage.setItem(scopedKey(AUTH_HINT_KEY, scope), "1");
 }
 
 export function clearStaffToken(scope: StaffAuthScope = "default"): void {
+  fetch(`${API_BASE}/api/auth/staff/logout`, {
+    method: "POST",
+    credentials: "include",
+    keepalive: true,
+  }).catch(() => {});
   localStorage.removeItem(scopedKey(TOKEN_KEY, scope));
+  localStorage.removeItem(scopedKey(AUTH_HINT_KEY, scope));
   localStorage.removeItem(scopedKey(BRANCH_KEY, scope));
   localStorage.removeItem(scopedKey(NAME_KEY, scope));
   localStorage.removeItem(scopedKey(ROLE_KEY, scope));

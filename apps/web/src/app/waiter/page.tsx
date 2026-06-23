@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getStaffToken, getStaffName } from "../../lib/staff-auth";
+import { hasStaffSession, getStaffName } from "../../lib/staff-auth";
 import Link from "next/link";
 
 type AuthState = "checking" | "authenticated" | "unauthenticated";
@@ -14,8 +14,7 @@ export default function WaiterPage() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      const token = getStaffToken("waiter");
-      if (token) {
+      if (hasStaffSession("waiter")) {
         setStaffName(getStaffName("waiter") ?? "");
         setAuthState("authenticated");
         setTimeout(() => router.replace("/waiter/dashboard"), 1200);

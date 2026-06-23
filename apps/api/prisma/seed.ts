@@ -260,6 +260,26 @@ async function main() {
   // 6. Staff accounts
   const passwordHash = await bcrypt.hash("password123", 10);
 
+  const saasOwner = await prisma.user.upsert({
+    where: { id: "seed-user-saas-owner" },
+    update: {
+      passwordHash,
+      globalRole: "SAAS_OWNER",
+      email: "saas@demo.com",
+      phone: "+1000000999",
+      name: "SaaS Owner",
+    },
+    create: {
+      id: "seed-user-saas-owner",
+      name: "SaaS Owner",
+      phone: "+1000000999",
+      email: "saas@demo.com",
+      passwordHash,
+      globalRole: "SAAS_OWNER",
+    },
+  });
+  console.log("  SaaS owner:", saasOwner.email, "(password: password123)");
+
   const owner = await prisma.staff.upsert({
     where: { id: "seed-staff-owner" },
     update: { passwordHash },

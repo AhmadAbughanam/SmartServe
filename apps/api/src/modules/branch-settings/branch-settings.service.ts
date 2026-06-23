@@ -7,7 +7,7 @@ export class BranchSettingsService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async getByBranch(tenantId: string, branchId: string) {
-    return this.prisma.branchSettings.findUnique({
+    return this.prisma.branchSettings.findFirst({
       where: { branchId, tenantId },
     });
   }

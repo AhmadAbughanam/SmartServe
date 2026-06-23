@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { authGet, authPost, authPatch } from "../../../lib/api";
-import { getStaffToken, getStaffName } from "../../../lib/staff-auth";
+import { getStaffName } from "../../../lib/staff-auth";
 import { useAdminBranch } from "../branch-context";
 import { LoadingScreen, EmptyState, useToast } from "../../../components/ui";
 
@@ -19,7 +19,6 @@ function fmtAgo(d: string | null) { if (!d) return "Never"; const m = Math.floor
 
 export default function AdminDevicesPage() {
   const qc = useQueryClient();
-  const [token, setToken] = useState<string | null>(null);
   const { branchId } = useAdminBranch();
   const [staffName, setStaffNameLocal] = useState("");
   const [search, setSearch] = useState("");
@@ -36,25 +35,25 @@ export default function AdminDevicesPage() {
   const [busy, setBusy] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
 
-  useEffect(() => { setToken(getStaffToken()); setStaffNameLocal(getStaffName() ?? ""); }, []);
+  useEffect(() => { setStaffNameLocal(getStaffName() ?? ""); }, []);
 
   const { data: devices, isLoading } = useQuery({
     queryKey: ["admin-devices", branchId],
-    queryFn: () => authGet<Device[]>(`/api/admin/devices?branchId=${branchId}`, token!),
-    enabled: !!token && !!branchId,
+    queryFn: () => authGet<Device[]>(`/api/admin/devices?branchId=${branchId}`),
+    enabled: !!branchId,
   });
 
   function openCreate() { setEditId(null); setSideOpen(true); setFName(""); setFType("KDS"); setFArea(""); setFActive(true); setFNotes(""); setNewKey(null); }
   function openEdit(d: Device) { setEditId(d.id); setSideOpen(true); setFName(d.name); setFType(d.deviceType); setFArea(""); setFActive(d.isActive); setFNotes(""); setNewKey(null); }
 
   async function handleSave() {
-    if (!token || !branchId || !fName) return; setBusy(true);
+    if (!branchId || !fName) return; setBusy(true);
     try {
       if (editId) {
-        await authPatch(`/api/admin/devices/${editId}`, token, { name: fName, deviceType: fType, isActive: fActive });
+        await authPatch(`/api/admin/devices/${editId}`, undefined, { name: fName, deviceType: fType, isActive: fActive });
         toast("Device updated");
       } else {
-        const res = await authPost<{ id: string; apiKey: string }>("/api/admin/devices", token, { branchId, name: fName, deviceType: fType });
+        const res = await authPost<{ id: string; apiKey: string }>("/api/admin/devices", undefined, { branchId, name: fName, deviceType: fType });
         setNewKey(res.apiKey); toast("Device registered");
       }
       qc.invalidateQueries({ queryKey: ["admin-devices"] });

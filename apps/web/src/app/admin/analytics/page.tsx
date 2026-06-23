@@ -1,9 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
 import { authGet } from "../../../lib/api";
-import { getStaffToken } from "../../../lib/staff-auth";
+import { useState } from "react";
 import { useAdminBranch } from "../branch-context";
 import { LoadingScreen, EmptyState } from "../../../components/ui";
 import { DemandForecastPanel } from "../../../components/admin/ai/DemandForecastPanel";
@@ -85,15 +84,13 @@ function AnalyticsNav({ active, onChange }: { active: "analytics" | "finance"; o
 }
 
 export default function AdminAnalyticsPage() {
-  const [token, setToken] = useState<string | null>(null);
   const [view, setView] = useState<"analytics" | "finance">("analytics");
   const { branchId } = useAdminBranch();
-  useEffect(() => { setToken(getStaffToken()); }, []);
 
-  const { data: dashboard, isLoading: dl } = useQuery({ queryKey: ["a-dash", branchId], queryFn: () => authGet<DashboardData>(`/api/analytics/dashboard?branchId=${branchId}`, token!), enabled: !!token && !!branchId });
-  const { data: sales } = useQuery({ queryKey: ["a-sales", branchId], queryFn: () => authGet<SalesData>(`/api/analytics/sales?branchId=${branchId}`, token!), enabled: !!token && !!branchId });
-  const { data: menuPerf } = useQuery({ queryKey: ["a-menu", branchId], queryFn: async () => { const r = await authGet<{ items: MenuPerformanceItem[] }>(`/api/analytics/menu-performance?branchId=${branchId}`, token!); return r.items ?? []; }, enabled: !!token && !!branchId });
-  const { data: insights } = useQuery({ queryKey: ["a-insights", branchId], queryFn: () => authGet<Insights>(`/api/analytics/insights?branchId=${branchId}`, token!), enabled: !!token && !!branchId });
+  const { data: dashboard, isLoading: dl } = useQuery({ queryKey: ["a-dash", branchId], queryFn: () => authGet<DashboardData>(`/api/analytics/dashboard?branchId=${branchId}`), enabled: !!branchId });
+  const { data: sales } = useQuery({ queryKey: ["a-sales", branchId], queryFn: () => authGet<SalesData>(`/api/analytics/sales?branchId=${branchId}`), enabled: !!branchId });
+  const { data: menuPerf } = useQuery({ queryKey: ["a-menu", branchId], queryFn: async () => { const r = await authGet<{ items: MenuPerformanceItem[] }>(`/api/analytics/menu-performance?branchId=${branchId}`); return r.items ?? []; }, enabled: !!branchId });
+  const { data: insights } = useQuery({ queryKey: ["a-insights", branchId], queryFn: () => authGet<Insights>(`/api/analytics/insights?branchId=${branchId}`), enabled: !!branchId });
 
   if (view === "finance") {
     return (
@@ -116,8 +113,8 @@ export default function AdminAnalyticsPage() {
         </h1>
       </div>
       <div className="flex-1 overflow-auto p-6 px-7">
-        <DemandForecastPanel branchId={branchId} token={token} />
-        <ReviewSentimentPanel branchId={branchId} token={token} />
+        <DemandForecastPanel branchId={branchId} />
+        <ReviewSentimentPanel branchId={branchId} />
         <BusinessInsightsPanel branchId={branchId ?? undefined} />
         <EmptyState icon="&#x1F4C8;" title="No data yet" description="Analytics will appear once orders are placed." />
       </div>
@@ -179,8 +176,8 @@ export default function AdminAnalyticsPage() {
 
       {/* Body */}
       <div className="flex-1 overflow-auto p-6 px-7">
-        <DemandForecastPanel branchId={branchId} token={token} />
-        <ReviewSentimentPanel branchId={branchId} token={token} />
+        <DemandForecastPanel branchId={branchId} />
+        <ReviewSentimentPanel branchId={branchId} />
         <BusinessInsightsPanel branchId={branchId ?? undefined} />
 
         {/* Row 1: Sales Trend + Orders by Hour */}

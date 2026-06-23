@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { authGet, authPost } from "../../../lib/api";
-import { getStaffToken, getStaffName } from "../../../lib/staff-auth";
+import { getStaffName } from "../../../lib/staff-auth";
 import { useAdminBranch } from "../branch-context";
 import { LoadingScreen, EmptyState, useToast } from "../../../components/ui";
 import type { Shift } from "../../../lib/admin-types";
@@ -24,7 +24,6 @@ function hoursWorked(checkIn: string, checkOut: string | null): string {
 
 export default function AdminShiftsPage() {
   const qc = useQueryClient();
-  const [token, setToken] = useState<string | null>(null);
   const { branchId } = useAdminBranch();
   const [staffName, setStaffNameLocal] = useState("");
   const [busy, setBusy] = useState(false);
@@ -32,18 +31,17 @@ export default function AdminShiftsPage() {
   const [selShift, setSelShift] = useState<Shift | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => { setToken(getStaffToken()); setStaffNameLocal(getStaffName() ?? ""); }, []);
+  useEffect(() => { setStaffNameLocal(getStaffName() ?? ""); }, []);
 
   const { data: shifts, isLoading } = useQuery({
     queryKey: ["admin-shifts", branchId],
-    queryFn: () => authGet<Shift[]>(`/api/shifts?branchId=${branchId}`, token!),
-    enabled: !!token && !!branchId,
+    queryFn: () => authGet<Shift[]>(`/api/shifts?branchId=${branchId}`),
+    enabled: !!branchId,
   });
 
   const { data: openShift } = useQuery({
     queryKey: ["admin-shift-open"],
-    queryFn: async () => { try { return await authGet<Shift>("/api/shifts/open", token!); } catch { return null; } },
-    enabled: !!token,
+    queryFn: async () => { try { return await authGet<Shift>("/api/shifts/open"); } catch { return null; } },
   });
 
   // Fetch attendance for today
@@ -52,7 +50,7 @@ export default function AdminShiftsPage() {
     queryFn: async () => {
       try {
         // Get staff list and check attendance for each — using the shifts endpoint that includes attendance
-        const allShifts = await authGet<Array<Shift & { attendance?: AttendanceRecord[] }>>(`/api/shifts?branchId=${branchId}`, token!);
+        const allShifts = await authGet<Array<Shift & { attendance?: AttendanceRecord[] }>>(`/api/shifts?branchId=${branchId}`);
         const records: AttendanceRecord[] = [];
         // Collect unique attendance from shifts
         for (const s of allShifts) {
@@ -61,20 +59,20 @@ export default function AdminShiftsPage() {
         return records;
       } catch { return []; }
     },
-    enabled: !!token && !!branchId,
+    enabled: !!branchId,
   });
 
   async function handleOpenShift() {
-    if (!token) return; setBusy(true);
-    try { await authPost("/api/shifts/open", token); qc.invalidateQueries({ queryKey: ["admin-shifts"] }); qc.invalidateQueries({ queryKey: ["admin-shift-open"] }); toast("Shift opened"); }
+    setBusy(true);
+    try { await authPost("/api/shifts/open"); qc.invalidateQueries({ queryKey: ["admin-shifts"] }); qc.invalidateQueries({ queryKey: ["admin-shift-open"] }); toast("Shift opened"); }
     catch (e) { toast(e instanceof Error ? e.message : "Failed", "error"); }
     finally { setBusy(false); }
   }
 
   async function handleCloseTill() {
-    if (!token || !selShift || !tillCash) return; setBusy(true);
+    if (!selShift || !tillCash) return; setBusy(true);
     try {
-      const r = await authPost<{ expectedCash: string; actualCash: string; difference: string }>(`/api/shifts/${selShift.id}/till/close`, token, { actualCash: parseFloat(tillCash) });
+      const r = await authPost<{ expectedCash: string; actualCash: string; difference: string }>(`/api/shifts/${selShift.id}/till/close`, undefined, { actualCash: parseFloat(tillCash) });
       toast(`Till closed — Diff: $${r.difference}`);
       qc.invalidateQueries({ queryKey: ["admin-shifts"] }); qc.invalidateQueries({ queryKey: ["admin-shift-open"] });
       setTillCash("");
@@ -83,8 +81,8 @@ export default function AdminShiftsPage() {
   }
 
   async function handleCloseShift() {
-    if (!token || !selShift) return; setBusy(true);
-    try { await authPost(`/api/shifts/${selShift.id}/close`, token); toast("Shift closed"); setSelShift(null); qc.invalidateQueries({ queryKey: ["admin-shifts"] }); qc.invalidateQueries({ queryKey: ["admin-shift-open"] }); }
+    if (!selShift) return; setBusy(true);
+    try { await authPost(`/api/shifts/${selShift.id}/close`); toast("Shift closed"); setSelShift(null); qc.invalidateQueries({ queryKey: ["admin-shifts"] }); qc.invalidateQueries({ queryKey: ["admin-shift-open"] }); }
     catch (e) { toast(e instanceof Error ? e.message : "Failed", "error"); }
     finally { setBusy(false); }
   }

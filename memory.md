@@ -28,6 +28,78 @@ This file is the rolling project memory. Claude or any coding agent working in t
 
 ## Change Log
 
+### 2026-06-20 — SaaS Notifications Surface Removed
+
+- Removed the SaaS `Notifications` page and the related sidebar section because the notifications surface is no longer part of the desired SaaS navigation.
+- Kept the rest of the fixed SaaS shell intact so removing notifications did not affect primary page routing or account-menu behavior.
+
+### 2026-06-20 — SaaS Sidebar Functionality Completion
+
+- Replaced the static future-section notification row with a real `/saas/notifications` route backed by existing SaaS settings, system-health incidents, and audit-feed data.
+- Converted the sidebar account footer from a decorative chevron row into a working expandable account menu with a real `Open Settings` action and logout action.
+- Kept the existing fixed-sidebar shell while removing dead-looking interactive affordances from the SaaS rail.
+
+### 2026-06-20 — SaaS Fixed Sidebar Shell Redesign
+
+- Rebuilt the desktop SaaS sidebar shell in `apps/web/src/app/saas/layout.tsx` to match the new card-style reference with a stronger brand header, identity card, larger nav items, a future-section notification row, and a structured admin/logout footer card.
+- Changed the desktop SaaS shell from a normal flex sidebar to a fixed viewport rail so the left navigation no longer scrolls with page height; the content column now scrolls independently with left padding equal to the fixed rail width.
+- Kept mobile SaaS navigation behavior intact and preserved the existing route structure and logout/session handling.
+
+### 2026-06-20 — SaaS Settings Reference Redesign
+
+- Rebuilt the SaaS `Settings` page to match the new light-theme platform-configuration reference while preserving the existing platform settings, save flow, runtime summary, announcement editing, and recent changes behavior.
+- Reorganized the page into numbered profile, access, announcements, runtime, and recent-changes sections so the information hierarchy matches the target design more closely.
+- Kept the existing `/api/saas/settings` contract intact and preserved the existing `Save Platform Settings` and `Open System Health` actions.
+
+### 2026-06-20 — SaaS System Health Reference Redesign
+
+- Rebuilt the SaaS `System Health` page to match the new reliability-command reference while keeping the existing health overview, service registry, incident feed, and audit-log entry behavior.
+- Replaced the generic cards and tables with a more structured command layout: custom health KPI cards, a service registry board, a dark service detail panel, and a cleaner incident/noisy-branches section.
+- Kept the existing `/api/saas/system-health/*` data contracts and `/saas/audit-logs` handoff intact so the redesign did not change operational ownership or backend wiring.
+
+### 2026-06-20 — SaaS Billing Network Sales Reference Redesign
+
+- Rebuilt the `Billing > Network Sales` surface to match the new light-theme sales-reporting reference with redesigned KPI cards, a structured top-tenants table, and a richer sales-alerts panel.
+- Kept the existing `/api/saas/revenue` contract and continued labeling the page as tenant restaurant sales rather than SaaS subscription revenue.
+- Updated the shared billing tab bar styling so the full billing surface now matches the redesigned visual language more closely.
+
+### 2026-06-20 — SaaS Controls Modules Reference Redesign
+
+- Rebuilt the `Controls > Modules` surface to match the new light-theme reference: dark summary cards, dark filter rail, branch matrix on the left, and branch module editor on the right.
+- Changed module editing from immediate per-toggle mutation to staged branch-level edits with an explicit `Save Changes` action, while keeping the same `/api/saas/branches/:branchId/features` backend contract.
+- Made the branch matrix a dedicated scrollable region with a fixed desktop height so it now matches the height of the right-side editor panel instead of stretching the full page.
+
+### 2026-06-20 — SaaS Operations Page Reference Redesign
+
+- Reworked the SaaS `Operations` page to follow the new light-theme reference structure while preserving the existing `Branches`, `Requests`, `Orders`, and `Sessions` routing model.
+- Kept the live SaaS operations API wiring intact, but restyled the surface around custom KPI cards, a darker command-focus hero, denser branch board cards, explicit network coverage, command detail, and a list-style attention queue.
+- Reduced the branch board from a long generic listing into a priority grid plus navigator/coverage split so the page reads as an operations command surface instead of a raw data dump.
+
+### 2026-06-20 — SaaS Tenant Page Reference Redesign
+
+- Rebuilt the SaaS `Tenants` page content to follow the provided light-theme reference structure: top KPI row, filter/tabs rail, active-workspace hero, tenant portfolio, onboarding strip, and supporting intelligence/profile sections.
+- Kept the page wired to the existing SaaS tenant lifecycle APIs so tenant creation, tenant status changes, branch creation/editing, branch status changes, and owner provisioning still execute real backend mutations.
+- Preserved the `Directory`, `Branches`, `Owners`, and `Provisioning` tab ownership model while restyling those workflows into a more structured desktop-first control surface.
+
+### 2026-06-19 — SaaS Tenant Surface UX Rebuild
+
+- Rebuilt the SaaS `Tenants` page into a three-column control surface with a portfolio rail, focused workspace, and persistent intelligence rail.
+- Kept the existing tenant, branch, and owner lifecycle actions, but redistributed them into clearer page owners: tenant profile, branch rollout board, owner coverage, and provisioning workspace.
+- Kept all tenant-page mutations wired to the existing SaaS admin endpoints while upgrading the information hierarchy away from dense tables toward task-driven cards and contextual panels.
+- Later refactored the tenant page again into a whitespace-safe single-flow structure so the SaaS desktop layout no longer leaves trailing column gaps, then upgraded the visual treatment with richer hero, card, and selection states without changing the functional contracts.
+
+### 2026-06-19 — SaaS Operations Surface UX Rebuild
+
+- Rebuilt the SaaS `Operations` page into a tab-owned command surface with distinct `Branches`, `Requests`, `Orders`, and `Sessions` entry points.
+- Fixed the previous tab/hook structure by moving tab-specific hook usage into dedicated child rendering paths so the parent no longer changes hook count when switching tabs.
+- Replaced the old table-first branch operations view with a full-width live command layout: hero context, pressure board, command detail, and attention queue driven by the existing SaaS operations endpoints.
+
+### 2026-06-19 — SaaS Billing Persistence
+
+- Added a dedicated Prisma migration for the new SaaS billing persistence models: `TenantSubscription` and `SaasInvoice`.
+- Synced the local development database to the current Prisma schema so the SaaS billing endpoints no longer point at missing tables.
+- Corrected the local `_prisma_migrations` record for `20260615143000_saas_platform_settings`, which had been represented in the database without a fully applied migration row and was blocking later Prisma migration work.
+
 ### 2026-04-03
 
 - Extracted the project PDF and scaffolded the repository around Next.js, NestJS, PostgreSQL, Redis, and Python AI services.
@@ -4270,3 +4342,229 @@ Full visual redesign of the 8 customer-facing screens to match a "Taste House" c
 - Integrated backend enforcement into the public QR/table session start path before session/table mutations; branch-disabled geofencing continues the existing flow.
 - Added customer start-page location capture and friendly denial/permission/low-accuracy messaging.
 - Added focused geofencing tests covering disabled branches, missing/invalid/low-accuracy locations, inside/outside radius, sanitized logs, session-start enforcement, and explicit demo bypass.
+
+### 2026-06-11 — Production Edge TLS Hardening
+
+- Chose Docker/VPS-first security hardening with edge TLS at Nginx now and private Docker-network plaintext service traffic for the MVP phase.
+- Production Nginx now terminates HTTPS on port 443, redirects port 80 to HTTPS, and expects mounted certificate files at `nginx/ssl/cert.pem` and `nginx/ssl/key.pem`.
+- API production startup now rejects non-localhost public `http://` origins and `COOKIE_SECURE=false`.
+- Branch realtime SSE is cookie/Bearer authenticated, with query-string tokens limited to non-production compatibility.
+- Customer refresh tokens are no longer written to browser storage; httpOnly cookies are the production browser auth path.
+- Production Docker API packaging now copies the monorepo TypeScript output from `dist/apps/api/src` into the runtime `dist` directory so `node dist/main.js` starts correctly.
+
+### 2026-06-11 — Browser Auth Cookie-First Hardening
+
+- Staff and customer browser helpers no longer persist access or refresh tokens in localStorage/sessionStorage; they keep only non-sensitive metadata/hints for UX routing.
+- Frontend API helpers use cookies by default and only send an Authorization header when given a real Bearer token, preserving programmatic API compatibility.
+- Added `POST /api/auth/staff/logout` to clear the shared access cookie for staff sessions.
+- Customer refresh/logout DTO now allows cookie-only refresh tokens, matching the existing controller behavior.
+
+### 2026-06-11 — Cookie CSRF Protection
+
+- Added a signed double-submit CSRF flow for cookie-authenticated browser requests: `GET /api/auth/csrf` sets a readable `sro_csrf` cookie and returns the token for `X-CSRF-Token`.
+- A global CSRF guard now rejects unsafe methods that carry auth cookies without a valid matching CSRF token, while explicit Bearer-token API clients remain compatible.
+- Auth bootstrap/logout/refresh routes and payment provider webhooks are exempt from browser CSRF so login, session cleanup, refresh rotation, and external webhook delivery remain operational.
+
+### 2026-06-11 — Production Edge Security Follow-Up
+
+- Tightened production CORS/public-origin validation: non-localhost origins must be explicit `https://` origins and wildcard, `null`, path, query, and hash values are rejected.
+- Added public-edge security headers in Nginx, including CSP, HSTS, frame restrictions, referrer policy, permissions policy, content sniffing protection, and cross-origin opener policy.
+- Added a VPS Let's Encrypt webroot issuance script and ACME challenge support in Nginx; renewal scheduling remains an operator task.
+- Added production edge smoke coverage for HTTP redirect, HTTPS frontend, HSTS/CSP headers, API health, and CSRF bootstrap.
+- Added webhook signature regression coverage for Stripe and mock gateways and included it in `test:critical`.
+
+### 2026-06-11 — Operations Hardening Follow-Up
+
+- Ran `npm audit fix`, which upgraded fixable Nest/path-to-regexp and qs dependencies; the remaining audit item is Next's bundled PostCSS version, where npm's force fix would downgrade Next to an incompatible legacy release.
+- Added request correlation IDs: Nginx forwards `X-Request-ID`, the API returns it, and request logs include it without logging bodies, cookies, authorization headers, or query strings.
+- Added `scripts/renew-letsencrypt.sh` for scheduled certificate renewal using the existing ACME webroot state and Nginx reload.
+- Added an optional Docker monitoring/logging overlay with Prometheus blackbox probes, Loki, Promtail, and Grafana, plus root `monitoring:up` and `monitoring:down` scripts.
+- Production compose now requires explicit MinIO and payment webhook secrets instead of falling back to development defaults.
+
+### 2026-06-14 — Unified Login Flow
+
+- Added `/login` as the shared customer/staff login entry point.
+- Staff login now authenticates once and routes by returned role/permissions to admin dashboard, cashier POS, kitchen display, or waiter dashboard.
+- Role-specific staff login URLs now redirect to `/login`; the customer OTP login UI was extracted into a shared component so the existing customer flow and design remain unchanged.
+
+### 2026-06-14 — OTP SMS And Release Gates
+
+- Added a backend SMS adapter for customer OTP delivery with `noop` for local development and Twilio REST delivery for production.
+- Production startup now rejects `SMS_PROVIDER=noop`; Twilio account SID, auth token, and from number are required when `SMS_PROVIDER=twilio`.
+- Staff browser sessions remain finite access-cookie sessions without staff refresh tokens; access JWT and cookie lifetime are now configurable through `STAFF_ACCESS_TOKEN_TTL` and `STAFF_ACCESS_COOKIE_MAX_AGE_MS`.
+- Added `npm run audit:security` to fail on unexpected npm audit findings while explicitly tracking the current Next-bundled PostCSS advisory that cannot be fixed without an unsafe Next downgrade.
+
+### 2026-06-14 — Production Rehearsal And Edge Smoke Expansion
+
+- Added `npm run rehearsal:production` as a VPS rollout preflight for `.env.production`, production Docker Compose, monitoring overlay Compose, TLS file presence, and optional live HTTPS smoke checks.
+- Expanded `npm run smoke:production` to verify invalid OTP request validation and unauthenticated branch SSE rejection in addition to redirect, frontend, health, headers, and CSRF bootstrap.
+- Deployment and testing docs now treat the rehearsal script as the first gate before public production bring-up.
+
+### 2026-06-14 — Production Secret Preparation Helper
+
+- Added `npm run secrets:production` to generate strong local values for repo-owned production secrets before VPS/domain rollout.
+- Clarified in env and deployment docs which values can be prepared locally now versus which must come from the final domain, Twilio, or a payment provider.
+
+### 2026-06-14 — Security Architecture Documentation
+
+- Added `docs/SECURITY_ARCHITECTURE.md` as a repository-specific security architecture reference covering auth, authorization, validation, API/data security, secrets, frontend/backend controls, integrations, uploads, logging, deployment, dependencies, gaps, and developer checklist.
+- Documented current security gaps including raw-body webhook verification hardening, public session/order capability checks, upload validation, public session SSE protection, AI service auth boundary, Redis production auth/TLS, PII encryption, and Python dependency audit coverage.
+
+### 2026-06-14 — AI Services Architecture Documentation
+
+- Added `docs/AI_SERVICES_ARCHITECTURE.md` as the repository-specific AI architecture reference covering current AI surfaces, providers, prompts, workflows, storage, validation, safety, privacy, testing, and improvement roadmap.
+- Documented that current AI uses deterministic backend services, optional FastAPI, Hugging Face chat completions, and scikit-learn Ridge forecasting; no embeddings, vector search, RAG, agents, OpenAI, Anthropic, Gemini, or LangChain integration was found.
+- Captured the current mismatch where NestJS review sentiment can call `AI_SERVICE_URL/review-sentiment/summarize`, but the FastAPI service does not currently implement that route.
+
+### 2026-06-14 — Project Architecture Documentation
+
+- Added `docs/PROJECT_ARCHITECTURE.md` as the project-wide developer architecture reference covering confirmed features, repo structure, tech stack, system flow, frontend/backend architecture, API route groups, data model groups, core features, configuration, development workflow, testing, observability, deployment, maintainability, glossary, unknowns, and roadmap.
+- Kept dedicated security and AI detail in their architecture docs while cross-referencing them from the project-wide guide.
+- Documented implementation-confirmed architecture separately from spec-only or unclear planned capabilities.
+
+### 2026-06-14 — SaaS Owner Super Admin
+
+- Added global `User.globalRole = SAAS_OWNER` identity support and a SaaS owner login path separate from tenant staff accounts.
+- Added a SaaS admin backend boundary for global tenant/branch listing, store owner provisioning, SaaS-wide analytics, and SaaS-only branch feature module updates.
+- Tenant admin branch settings now reject `featureFlagsJson` and `aiConfigJson` updates; standard admin settings UI no longer renders feature module or AI module controls.
+- Added `/saas` frontend dashboard routes for analytics, tenant/store owner management, and feature module management.
+
+### 2026-06-15 — SaaS AI Control Center
+
+- Added SaaS-only AI admin endpoints under `/api/saas/ai` for overview metrics, branch AI watchlists, per-branch diagnostics, and validated menu-chat control updates.
+- The SaaS AI backend reuses existing menu chat diagnostics and `BranchSettings.aiConfigJson` as the canonical control model instead of inventing a parallel AI configuration system.
+- Added `/saas/ai` as a real SaaS owner route with themed branch monitoring, actionable diagnostics, direct AI control editing, and preset rollout actions.
+- Verified `npm run typecheck:api`, `npm run typecheck:web`, `npm run build:web`, and direct API TypeScript compilation; the full API build still hits the known Windows Prisma `EPERM` generate issue before `tsc`.
+
+### 2026-06-15 — SaaS Revenue Command
+
+- Added `/api/saas/revenue` for SaaS-owner-only finance aggregation with validated date ranges, global totals, daily trend rows, payment-method mix, expense categories, tenant rollups, branch rollups, recent refunds, and derived finance alerts.
+- Added `/saas/revenue` as a real SaaS owner section and promoted Revenue from a placeholder to primary navigation.
+- The SaaS revenue surface is built directly on completed payments, completed refunds, expenses, and orders from the core operational schema rather than a separate reporting store.
+- Verified `npm run typecheck:api`, `npm run typecheck:web`, `npm run build:web`, and direct API TypeScript compilation.
+
+### 2026-06-15 — SaaS Operations Command
+
+- Added SaaS-only operations endpoints under `/api/saas/operations` for global live monitoring, branch watchlists, and per-branch operational drill-down.
+- The SaaS operations backend is built directly on sessions, active orders, service requests, low-stock alerts, shifts, tables, and operational event logs already present in the core schema.
+- Added `/saas/operations` as a real SaaS owner section and promoted Operations from a placeholder to primary navigation.
+- Verified `npm run typecheck:api`, `npm run typecheck:web`, `npm run build:web`, and direct API TypeScript compilation.
+
+### 2026-06-15 — SaaS Sessions Command
+
+- Added SaaS-only sessions endpoints under `/api/saas/sessions` for global session overview metrics, filtered watchlists, and per-session detail across guests, orders, service requests, and payments.
+- The SaaS sessions backend is built directly on the core `Session`, `Order`, `Payment`, and `ServiceRequest` models instead of a separate reporting layer, with derived duration and attention-state logic for platform monitoring.
+- Added `/saas/sessions` as a real SaaS owner section and promoted Sessions from the future-sections placeholder list to primary navigation.
+- Verified `npm run typecheck:api`, `npm run typecheck:web`, `npm run build:web`, and direct API TypeScript compilation.
+
+### 2026-06-15 — SaaS Owners And Staff Command
+
+- Added SaaS-only staff endpoints under `/api/saas/staff` for global roster overview, searchable member rows, per-staff operational detail, and SaaS-level account activation/deactivation.
+- The SaaS staff backend is built directly on `Staff`, `Role`, `StaffAttendance`, `Shift`, `ServiceRequest`, `Session`, `Order`, and `OperationalEventLog`, with derived activity-state and staffing recommendations based on live operating signals.
+- Added `/saas/owners-staff` as a real SaaS owner section and promoted Owners & Staff from the future-sections placeholder list to primary navigation.
+- Verified `npm run typecheck:api`, `npm run typecheck:web`, `npm run build:web`, and direct API TypeScript compilation.
+
+### 2026-06-15 — SaaS System Health Command
+
+- Added SaaS-only system health endpoints under `/api/saas/system-health` for overview metrics, live service registry rows, and recent platform incident feeds.
+- The SaaS system health backend combines direct dependency checks for API/database/Redis/AI/object storage with provider-mode visibility for payments and SMS, plus incident signals from operational logs, payment event logs, and hosted AI provider rejections.
+- Added `/saas/system-health` as a real SaaS owner section and promoted System Health from the future-sections placeholder list to primary navigation.
+- Verified `npm run typecheck:api`, `npm run typecheck:web`, `npm run build:web`, and direct API TypeScript compilation.
+
+### 2026-06-15 — SaaS Audit Logs Command
+
+- Added SaaS-only audit-log endpoints under `/api/saas/audit-logs` for overview metrics and a normalized cross-stream feed covering audit, operational, and payment events.
+- The SaaS audit backend is built directly on `AuditLog`, `OperationalEventLog`, and `PaymentEventLog`, preserving event-specific payloads such as before/after snapshots, metadata, payment provider/status fields, and actor identity where available.
+- Added `/saas/audit-logs` as a real SaaS owner section and promoted Audit Logs from the future-sections placeholder list to primary navigation.
+- Verified `npm run typecheck:api`, `npm run typecheck:web`, `npm run build:web`, and direct API TypeScript compilation.
+
+### 2026-06-15 — SaaS Settings Command
+
+- Added a new singleton `PlatformSettings` Prisma model for global SaaS configuration instead of storing platform settings on a user profile or tenant-scoped record.
+- Added `/api/saas/settings` for reading and updating platform identity, maintenance state, owner-provisioning policy, default operating windows, announcement banners, runtime summaries, and recent settings-change history.
+- Added `/saas/settings` as a real SaaS owner section and promoted Settings from the future-sections placeholder list to primary navigation.
+- Enforced one real backend policy from this surface: when `ownerProvisioningEnabled` is false, `/api/saas/tenants/owners` rejects new tenant-owner provisioning requests.
+- `prisma generate` succeeded only with `PRISMA_GENERATE_NO_ENGINE=1` due the known Windows Prisma engine rename lock; `prisma migrate dev` remained blocked by a Postgres advisory-lock timeout, so the SQL migration was generated from schema diff and applied locally with `prisma db execute`.
+- Verified `npm run typecheck:api`, `npm run typecheck:web`, `npm run build:web`, and direct API TypeScript compilation.
+
+### 2026-06-19 — SaaS IA Consolidation And Billing Contract
+
+- Consolidated the SaaS primary navigation to `Overview`, `Tenants`, `Operations`, `Controls`, `Billing`, `System Health`, and `Settings`.
+- Kept old SaaS deep links stable by redirecting `/saas/sessions`, `/saas/owners-staff`, `/saas/ai`, `/saas/features`, and `/saas/revenue` into their new owner pages.
+- Added tenant lifecycle API endpoints for tenant create/update/status and branch create/update/status under the existing SaaS admin boundary.
+- Added SaaS billing persistence models `TenantSubscription` and `SaasInvoice`, plus SaaS billing endpoints for overview, tenant subscription listing, invoice listing, and subscription update.
+- Used existing SaaS operational and payment event logging patterns for tenant lifecycle and billing change traceability rather than introducing a second admin logging system.
+- Prisma client regeneration on Windows required `npx prisma generate --no-engine` because the query-engine DLL remained locked during normal generate.
+
+### 2026-06-19 — SaaS Surface Completion
+
+- Rebuilt the remaining SaaS owner surfaces so Tenants, Controls, and Billing now use the consolidated IA rather than placeholder owners.
+- Tenants now owns tabbed tenant lifecycle, branch lifecycle, owner directory, and owner provisioning UI on top of the SaaS admin endpoints.
+- Controls now owns functional AI control editing, diagnostics, and preset rollout behavior on top of /api/saas/ai/*, while module flags remain in the same owner route.
+- Billing now owns functional subscription editing, invoice review, and billing-risk views on top of the new SaaS billing endpoints, with Network Sales kept separate.
+- System Health now exposes Audit Logs from the owner page rather than requiring primary-nav placement.
+
+### 2026-06-20 — SaaS Overview Reference Redesign
+
+- Rebuilt `/saas` around the provided light-theme overview reference instead of the previous dark dashboard layout.
+- Kept the overview page as an executive summary surface and removed workflow-heavy sections that duplicated deeper owner pages.
+- The new overview now centers on six KPI cards, priority alerts, platform health, tenant performance, order status mix, revenue trend, activity feed, and AI insight callouts using live SaaS analytics, health, revenue, tenant, and audit-log APIs.
+- Verified the redesign with `npm run typecheck:web` and `npm run build:web`.
+
+### 2026-06-20 — VPS Ops Readiness Phase 1
+
+- Added Linux shell helpers `scripts/backup-postgres.sh` and `scripts/restore-postgres.sh` so VPS operators no longer need to translate the PowerShell-only backup and restore flow manually.
+- Consolidated the production rollout order across `README.md` and `docs/deployment.md` around env preparation, rehearsal, container bring-up, TLS issuance, public rehearsal/smoke, migrations, optional staging/demo seed, and monitoring enablement.
+- Tightened production documentation to separate staging/demo VPS behavior from real production, explicitly allowing demo seed data and `PAYMENT_PROVIDER=mock` only outside real production.
+- Expanded `docs/operations.md` and `docs/monitoring.md` with success signals, failure actions, rollback guidance, restore-drill steps, minimum monitoring posture, and backup freshness expectations for single-node VPS operation.
+
+### 2026-06-23 — Production Storage Phase 2
+
+- Replaced menu-image disk writes with a backend-managed S3-compatible object storage flow backed by MinIO in Compose and `@aws-sdk/client-s3` in the API.
+- Expanded the object-storage contract to support put/get/delete so menu images can be uploaded, fetched through `/api/menu/images/:key`, and cleaned up when replaced.
+- Added production-facing storage env settings `S3_REGION`, `S3_FORCE_PATH_STYLE`, `S3_ACCESS_KEY_ID`, and `S3_SECRET_ACCESS_KEY`, with API fallback to `MINIO_ROOT_*` for single-node Compose deployments.
+- Updated frontend menu/order/waiter/admin surfaces to resolve relative image URLs through `NEXT_PUBLIC_API_BASE_URL` instead of hardcoding `http://localhost:4000`.
+
+### 2026-06-23 — Production Auth Hardening Phase 3 (Start)
+
+- Removed the branch SSE query-string token compatibility path so realtime branch streams now authenticate only through cookies or explicit Bearer headers.
+- Added frontend session helpers `hasStaffSession()` and `hasCustomerSession()` so browser route-entry checks speak in cookie-session terms instead of treating browser auth as a stored token.
+- Updated key browser entry points and customer menu favorites flow to rely on cookie-session presence rather than passing a browser-held token concept through the UI.
+- Removed browser token-state plumbing from the main operational pages already covered by cookie auth: admin layout/dashboard and AI panels, waiter dashboard/table workspace/checkout, and kitchen orders.
+- Kept the `authGet/authPost/authPatch` Bearer-token path available for non-browser/programmatic clients, while these browser surfaces now call the same helpers without pretending a browser token is present in state.
+
+### 2026-06-23 — Production Auth Hardening Phase 3 (Complete)
+
+- Finished the browser-side cookie-session migration across the remaining staff surfaces: analytics, finance, inventory, logs, POS, menu, promotions, settings, shifts, staff management, devices, and waiter cashier promotions.
+- Browser pages now call the shared auth API helpers without holding access-token state in React; staff/customer local storage is limited to non-sensitive routing metadata and session hints.
+- Verified the web workspace still typechecks after the migration with `npm run typecheck:web`.
+
+### 2026-06-23 — Production OTP Readiness Phase 4
+
+- Added `scripts/verify-twilio-config.mjs` plus root `npm run verify:twilio` so operators can validate production Twilio credentials before rollout without discovering SMS problems through a failed customer login.
+- Wired Twilio verification into `npm run rehearsal:production` by default, with `CHECK_TWILIO=0` as an explicit escape hatch for unusual environments.
+- Tightened Twilio startup validation in `apps/api/src/config/env.ts` so `TWILIO_ACCOUNT_SID` must look like a real Twilio Account SID and `TWILIO_FROM_NUMBER` must be E.164-formatted.
+- Updated production docs and env template so VPS rollout order now includes Twilio verification before public bring-up and explicit post-deploy OTP delivery confirmation.
+- Verified with `npm run typecheck:api`, `npm run test:otp-sms --workspace @smart-restaurant/api`, and a dry Twilio verifier run against a temporary env file.
+
+### 2026-06-23 — Production Observability Phase 5
+
+- Added a global metrics module using `prom-client`, with a public-internal `/api/metrics` endpoint that exposes HTTP request totals/latency, OTP request and verification outcomes, SMS delivery outcomes, and default Node.js process metrics.
+- Wired request metrics into `RequestLoggerMiddleware` and OTP/SMS metrics into `CustomerAuthService` and `SmsService`.
+- Updated Prometheus to scrape both blackbox health targets and direct API metrics, and blocked `/api/metrics` at the Nginx public edge because Prometheus scrapes the API container directly.
+- Added Grafana provisioning for Prometheus and Loki plus a `Smart Restaurant OS Production Overview` dashboard, and mounted those assets through `docker-compose.monitoring.yml`.
+- Updated monitoring/deployment/status docs and graduation notes to reflect that app-level metrics, dashboard provisioning, and Loki/Promtail aggregation are now implemented in the optional monitoring overlay.
+- Verified with `npm run typecheck:api`, `npm run test:otp-sms --workspace @smart-restaurant/api`, and `docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file .env.production.example config --quiet`.
+
+### 2026-06-23 — Edge Rate Limiting Phase 6
+
+- Added Nginx edge rate-limit zones for high-risk public/auth routes: staff login, SaaS login, customer OTP request/verify/refresh, public session start, public order creation, and public payment-intent/split routes.
+- Kept payment webhooks and general internal staff API traffic out of the edge throttling rules to avoid breaking provider callbacks or normal back-office workflows.
+- Documented that edge limits now complement the Nest throttler rather than replacing it, and updated deployment/security/status docs to reflect Nginx rate limiting as implemented rather than future work.
+- Verified Compose parsing with `docker compose -f docker-compose.prod.yml --env-file .env.production.example config --quiet` and the monitoring overlay variant; a standalone `nginx -t` container check is not meaningful outside the Compose network because the upstream service names resolve only inside that network.
+
+### 2026-06-23 — CI/CD Image Release Path
+
+- Added `.github/workflows/release-images.yml` to build and publish GHCR images for the API, web, and AI services on `main`, version tags, and manual dispatch.
+- Updated `docker-compose.prod.yml` so the same production stack can either build locally or run prebuilt images when `API_IMAGE`, `WEB_IMAGE`, and `AI_IMAGE` are set in `.env.production`.
+- Added `npm run docker:prod:pull` and updated deployment/status/docs so VPS rollout can use GitHub-built images instead of rebuilding on-host.

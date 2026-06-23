@@ -1,69 +1,80 @@
-# ─────────────────────────────────────────────────────
-# Smart Restaurant OS — Prometheus Configuration
-# ─────────────────────────────────────────────────────
-# Scrapes health endpoints from all services.
-# Used by docker-compose.monitoring.yml (optional overlay).
-#
-# This uses blackbox-style probing via the health endpoints
-# rather than app-level metrics instrumentation. For app-level
-# metrics, add @willsoto/nestjs-prometheus or prom-client to
-# the API and expose a /api/metrics endpoint.
-
 global:
   scrape_interval: 30s
   evaluation_interval: 30s
 
-# ── Alert rules (loaded if alertmanager is configured) ──
-# rule_files:
-#   - "alert-rules.yml"
+rule_files:
+  - "/etc/prometheus/alert-rules.yml"
 
 scrape_configs:
-  # ── API health ─────────────────────────────────────
   - job_name: "api-health"
-    metrics_path: /api/health
-    scrape_interval: 15s
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
     static_configs:
-      - targets: ["api:4000"]
+      - targets: ["http://api:4000/api/health"]
         labels:
           service: "api"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
 
-  # ── Nginx health ───────────────────────────────────
-  - job_name: "nginx-health"
-    metrics_path: /nginx-health
-    scrape_interval: 15s
+  - job_name: "api-metrics"
     static_configs:
-      - targets: ["nginx:80"]
+      - targets: ["api:4000"]
+    metrics_path: /api/metrics
+
+  - job_name: "nginx-health"
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: ["http://nginx/nginx-health"]
         labels:
           service: "nginx"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
 
-  # ── AI service health ──────────────────────────────
   - job_name: "ai-health"
-    metrics_path: /health
-    scrape_interval: 30s
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
     static_configs:
-      - targets: ["ai:8000"]
+      - targets: ["http://ai:8000/health"]
         labels:
           service: "ai"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
 
-  # ── Prometheus self-monitoring ─────────────────────
+  - job_name: "public-edge"
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: ["https://nginx/nginx-health"]
+        labels:
+          service: "public-edge"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+
   - job_name: "prometheus"
     static_configs:
       - targets: ["localhost:9090"]
-
-  # ── Nginx Prometheus Exporter (if enabled) ─────────
-  # Uncomment if you add the nginx-exporter service:
-  # - job_name: "nginx-exporter"
-  #   static_configs:
-  #     - targets: ["nginx-exporter:9113"]
-
-  # ── Postgres Exporter (if enabled) ─────────────────
-  # Uncomment if you add the postgres-exporter service:
-  # - job_name: "postgres-exporter"
-  #   static_configs:
-  #     - targets: ["postgres-exporter:9187"]
-
-  # ── Redis Exporter (if enabled) ────────────────────
-  # Uncomment if you add the redis-exporter service:
-  # - job_name: "redis-exporter"
-  #   static_configs:
-  #     - targets: ["redis-exporter:9121"]

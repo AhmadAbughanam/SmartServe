@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authGet, authPost } from "../../../lib/api";
-import { clearStaffToken, getStaffRole, getStaffToken } from "../../../lib/staff-auth";
+import { clearStaffToken, getStaffRole, hasStaffSession } from "../../../lib/staff-auth";
 import { LoadingScreen, useToast } from "../../../components/ui";
 import { CashierNav } from "../cashier-nav";
 
@@ -33,7 +33,6 @@ export default function CashierPromotionsPage() {
   const qc = useQueryClient();
   const router = useRouter();
   const { toast } = useToast();
-  const [token, setToken] = useState<string | null>(null);
   const [role, setRole] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [giftCode, setGiftCode] = useState("");
@@ -43,29 +42,27 @@ export default function CashierPromotionsPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const t = getStaffToken("waiter");
-    if (!t) { router.push("/waiter/login"); return; }
-    setToken(t);
+    if (!hasStaffSession("waiter")) { router.push("/waiter/login"); return; }
     setRole(getStaffRole("waiter") ?? "");
   }, [router]);
 
   const { data: coupons, isLoading } = useQuery({
     queryKey: ["cashier-coupons"],
-    queryFn: () => authGet<Coupon[]>("/api/promotions/coupons?active=true", token!),
-    enabled: !!token && role === "CASHIER",
+    queryFn: () => authGet<Coupon[]>("/api/promotions/coupons?active=true"),
+    enabled: role === "CASHIER",
   });
 
   const { data: giftCards } = useQuery({
     queryKey: ["cashier-gift-cards"],
-    queryFn: () => authGet<GiftCard[]>("/api/promotions/gift-cards?status=ACTIVE", token!),
-    enabled: !!token && role === "CASHIER",
+    queryFn: () => authGet<GiftCard[]>("/api/promotions/gift-cards?status=ACTIVE"),
+    enabled: role === "CASHIER",
   });
 
   async function validateCoupon() {
-    if (!token || !couponCode.trim()) return;
+    if (!couponCode.trim()) return;
     setBusy(true);
     try {
-      const result = await authPost("/api/promotions/coupons/validate", token, { code: couponCode.trim() });
+      const result = await authPost("/api/promotions/coupons/validate", undefined, { code: couponCode.trim() });
       setCouponResult(result);
       toast("Coupon checked");
     } catch (e) {
@@ -77,10 +74,10 @@ export default function CashierPromotionsPage() {
   }
 
   async function redeemGiftCard() {
-    if (!token || !selectedGiftCard || !giftAmount) return;
+    if (!selectedGiftCard || !giftAmount) return;
     setBusy(true);
     try {
-      await authPost(`/api/promotions/gift-cards/${selectedGiftCard.id}/redeem`, token, { amount: parseFloat(giftAmount) });
+      await authPost(`/api/promotions/gift-cards/${selectedGiftCard.id}/redeem`, undefined, { amount: parseFloat(giftAmount) });
       toast("Gift card redeemed");
       setGiftAmount("");
       setSelectedGiftCard(null);

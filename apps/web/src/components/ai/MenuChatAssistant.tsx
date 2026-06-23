@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import type { MenuChatResponse } from "@smart-restaurant/shared-types";
 import { post } from "../../lib/api";
+import { resolveAssetUrl } from "../../lib/media";
 import type { CartItem, MenuItem } from "../../lib/types";
 
-const COPPER = "#c2841d";
-const COPPER_SOFT = "#fdf2e2";
-const COPPER_EDGE = "#f1d9a8";
-const COPPER_INK = "#7c5511";
+const COPPER = "#0c0a09";
+const COPPER_SOFT = "#f5f5f4";
+const COPPER_EDGE = "#e7e5e4";
+const COPPER_INK = "#1c1917";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -43,8 +44,7 @@ function photoGrad(id: string) {
 }
 
 function imgUrl(url: string | null) {
-  if (!url) return null;
-  return url.startsWith("/") ? `http://localhost:4000${url}` : url;
+  return resolveAssetUrl(url);
 }
 
 function staffHelpLabel(reason: MenuChatResponse["staffHelpReason"]) {

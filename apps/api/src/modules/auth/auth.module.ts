@@ -6,9 +6,11 @@ import { AuthController } from "./auth.controller.js";
 import { CustomerAuthController } from "./customer-auth.controller.js";
 import { AuthService } from "./auth.service.js";
 import { CustomerAuthService } from "./customer-auth.service.js";
+import { SmsService } from "./sms.service.js";
 import { TokenService } from "./token.service.js";
 import { BranchAccessService } from "./branch-access.service.js";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard.js";
+import { CsrfGuard } from "./guards/csrf.guard.js";
 import { PermissionsGuard } from "./guards/permissions.guard.js";
 import { LogsModule } from "../logs/logs.module.js";
 
@@ -24,6 +26,7 @@ import { LogsModule } from "../logs/logs.module.js";
   providers: [
     AuthService,
     CustomerAuthService,
+    SmsService,
     TokenService,
     BranchAccessService,
     {
@@ -44,10 +47,14 @@ import { LogsModule } from "../logs/logs.module.js";
     },
     {
       provide: APP_GUARD,
+      useFactory: () => new CsrfGuard(),
+    },
+    {
+      provide: APP_GUARD,
       useFactory: (reflector: Reflector) => new PermissionsGuard(reflector),
       inject: [Reflector],
     },
   ],
-  exports: [AuthService, CustomerAuthService, TokenService, BranchAccessService],
+  exports: [AuthService, CustomerAuthService, TokenService, BranchAccessService, SmsService],
 })
 export class AuthModule {}

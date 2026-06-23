@@ -3,9 +3,18 @@ import { env } from "../../config/env.js";
 
 const ACCESS_COOKIE = "sro_access";
 const REFRESH_COOKIE = "sro_refresh";
+export const CSRF_COOKIE = "sro_csrf";
 
 const baseOptions = () => ({
   httpOnly: true,
+  secure: env.cookieSecure,
+  sameSite: env.cookieSameSite,
+  path: "/api",
+  ...(env.cookieDomain ? { domain: env.cookieDomain } : {}),
+});
+
+const csrfOptions = () => ({
+  httpOnly: false,
   secure: env.cookieSecure,
   sameSite: env.cookieSameSite,
   path: "/api",
@@ -34,6 +43,13 @@ export function clearAuthCookies(res: Response) {
   const opts = baseOptions();
   res.clearCookie(ACCESS_COOKIE, { ...opts, path: "/api" });
   res.clearCookie(REFRESH_COOKIE, { ...opts, path: "/api/auth/customer" });
+  res.clearCookie(CSRF_COOKIE, csrfOptions());
+}
+
+/** Clear only the shared access cookie used by staff/customer browser sessions. */
+export function clearAccessCookie(res: Response) {
+  res.clearCookie(ACCESS_COOKIE, { ...baseOptions(), path: "/api" });
+  res.clearCookie(CSRF_COOKIE, csrfOptions());
 }
 
 /** Extract access token from cookie. */
@@ -44,4 +60,17 @@ export function getAccessTokenFromCookie(cookies: Record<string, string>): strin
 /** Extract refresh token from cookie. */
 export function getRefreshTokenFromCookie(cookies: Record<string, string>): string | undefined {
   return cookies?.[REFRESH_COOKIE];
+}
+
+/** Set readable CSRF cookie for browser double-submit protection. */
+export function setCsrfCookie(res: Response, token: string) {
+  res.cookie(CSRF_COOKIE, token, {
+    ...csrfOptions(),
+    maxAge: 8 * 60 * 60 * 1000,
+  });
+}
+
+/** Extract CSRF token from cookie. */
+export function getCsrfTokenFromCookie(cookies: Record<string, string>): string | undefined {
+  return cookies?.[CSRF_COOKIE];
 }

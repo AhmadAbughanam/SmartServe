@@ -11,6 +11,8 @@ import { env } from "../../config/env.js";
 import { TokenService } from "./token.service.js";
 import { generateOtp, hashOtp, verifyOtp } from "./otp.util.js";
 import type { AuthenticatedCustomer } from "./types/auth.types.js";
+import { SmsService } from "./sms.service.js";
+import { MetricsService } from "../metrics/metrics.service.js";
 
 const OTP_EXPIRY_MINUTES = 5;
 const MAX_OTP_ATTEMPTS = 5;
@@ -23,6 +25,8 @@ export class CustomerAuthService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(TokenService) private readonly tokenService: TokenService,
+    @Inject(SmsService) private readonly smsService: SmsService,
+    @Inject(MetricsService) private readonly metricsService: MetricsService,
   ) {}
 
   async requestOtp(phone: string) {
@@ -34,8 +38,15 @@ export class CustomerAuthService {
       data: { phone, codeHash, expiresAt },
     });
 
+    await this.smsService.send({
+      to: phone,
+      purpose: "CUSTOMER_OTP",
+      body: `Your Smart Restaurant verification code is ${otp}. It expires in ${OTP_EXPIRY_MINUTES} minutes.`,
+    });
+    this.metricsService.recordOtpRequest("issued");
+
     // DEV ONLY: expose the OTP in the response so it can be used without an SMS provider.
-    // In production this would be sent via SMS and never returned.
+    // In production it is sent via SMS and never returned.
     const isDev = env.nodeEnv === "development";
     if (isDev) {
       this.logger.warn(`[DEV] OTP for ${phone}: ${otp}`);
@@ -60,10 +71,12 @@ export class CustomerAuthService {
     });
 
     if (!otpRecord) {
+      this.metricsService.recordOtpVerification("failed");
       throw new UnauthorizedException("No valid OTP found. Request a new one.");
     }
 
     if (otpRecord.attempts >= MAX_OTP_ATTEMPTS) {
+      this.metricsService.recordOtpVerification("blocked");
       throw new UnauthorizedException(
         "Too many attempts. Request a new OTP.",
       );
@@ -77,8 +90,10 @@ export class CustomerAuthService {
 
     const valid = await verifyOtp(code, otpRecord.codeHash);
     if (!valid) {
+      this.metricsService.recordOtpVerification("failed");
       throw new UnauthorizedException("Invalid OTP code");
     }
+    this.metricsService.recordOtpVerification("succeeded");
 
     // Mark OTP as verified
     await this.prisma.otpRequest.update({
@@ -196,6 +211,7 @@ export class CustomerAuthService {
       userId: user.id,
       phone: user.phone,
       name: user.name,
+      globalRole: user.globalRole,
     };
   }
 

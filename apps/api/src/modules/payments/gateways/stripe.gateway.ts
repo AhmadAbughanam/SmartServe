@@ -6,8 +6,6 @@ import type {
   WebhookEvent,
 } from "../../../contracts/payment-gateway.js";
 
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? "";
-const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? "";
 const STRIPE_API = "https://api.stripe.com/v1";
 
 /**
@@ -23,6 +21,7 @@ export class StripePaymentGateway implements PaymentGateway {
   readonly name = "stripe";
 
   async createIntent(input: PaymentIntentInput): Promise<PaymentIntentResult> {
+    const secretKey = process.env.STRIPE_SECRET_KEY ?? "";
     const returnUrl = input.returnUrl ?? "http://localhost:3000/customer/payment/success";
     const cancelUrl = input.cancelUrl ?? "http://localhost:3000/customer/payment/cancel";
 
@@ -45,7 +44,7 @@ export class StripePaymentGateway implements PaymentGateway {
     const res = await fetch(`${STRIPE_API}/checkout/sessions`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+        Authorization: `Bearer ${secretKey}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: params.toString(),
@@ -66,7 +65,8 @@ export class StripePaymentGateway implements PaymentGateway {
   }
 
   verifyWebhookSignature(payload: string, signature: string): boolean {
-    if (!STRIPE_WEBHOOK_SECRET || !signature) return false;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+    if (!webhookSecret || !signature) return false;
 
     // Parse Stripe signature header: t=timestamp,v1=hash
     const parts = new Map<string, string>();
@@ -82,7 +82,7 @@ export class StripePaymentGateway implements PaymentGateway {
     // Stripe signs: timestamp + "." + payload
     const signedPayload = `${timestamp}.${payload}`;
     const expected = crypto
-      .createHmac("sha256", STRIPE_WEBHOOK_SECRET)
+      .createHmac("sha256", webhookSecret)
       .update(signedPayload)
       .digest("hex");
 

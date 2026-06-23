@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { authGet, authPost, getApiErrorMessage } from "../../../lib/api";
-import { clearStaffToken, getStaffBranchId, getStaffPermissions, getStaffRole, getStaffToken } from "../../../lib/staff-auth";
+import { clearStaffToken, getStaffBranchId, getStaffPermissions, getStaffRole, hasStaffSession } from "../../../lib/staff-auth";
 import { useAdminBranch } from "../branch-context";
 import { LoadingScreen, EmptyState, ErrorDisplay, InlineAlert, PermissionDeniedState, useToast } from "../../../components/ui";
 import { usePathname, useRouter } from "next/navigation";
@@ -74,7 +74,6 @@ function SH({ icon, title, accent }: { icon: React.ReactNode; title: string; acc
 
 export default function AdminInventoryPage() {
   const qc = useQueryClient();
-  const [token, setToken] = useState<string | null>(null);
   const { branchId: adminBranchId } = useAdminBranch();
   const [staffBranchId, setStaffBranchId] = useState("");
   const [role, setRole] = useState("");
@@ -96,10 +95,8 @@ export default function AdminInventoryPage() {
 
   useEffect(() => {
     const scope = pathname.startsWith("/waiter") ? "waiter" : "default";
-    const t = getStaffToken(scope);
     const r = getStaffRole(scope) ?? "";
-    if (!t) { router.push("/waiter/login"); return; }
-    setToken(t);
+    if (!hasStaffSession(scope)) { router.push(pathname.startsWith("/waiter") ? "/waiter/login" : "/admin/login"); return; }
     setRole(r);
     setPermissions(getStaffPermissions(scope));
     setStaffBranchId(getStaffBranchId(scope) ?? "");
@@ -107,14 +104,14 @@ export default function AdminInventoryPage() {
 
   const { data: items, isLoading, error } = useQuery({
     queryKey: ["admin-inventory", branchId],
-    queryFn: () => authGet<InvItem[]>(`/api/inventory/items?branchId=${branchId}`, token!),
-    enabled: !!token && !!branchId,
+    queryFn: () => authGet<InvItem[]>(`/api/inventory/items?branchId=${branchId}`),
+    enabled: !!branchId,
   });
 
   const { data: lowStock, isError: lowStockError, refetch: refetchLowStock } = useQuery({
     queryKey: ["admin-low-stock", branchId],
-    queryFn: () => authGet<LowStockItem[]>(`/api/inventory/low-stock?branchId=${branchId}`, token!),
-    enabled: !!token && !!branchId,
+    queryFn: () => authGet<LowStockItem[]>(`/api/inventory/low-stock?branchId=${branchId}`),
+    enabled: !!branchId,
   });
 
   const privilegedInventoryRole = ["OWNER", "MANAGER", "ADMIN", "CASHIER"].includes(role);
@@ -132,9 +129,9 @@ export default function AdminInventoryPage() {
   function closeSide() { setSideMode("idle"); setSelItem(null); setFormError(null); }
 
   async function handleAdjust() {
-    if (!token || !selItem || !adjDelta) return; setBusy(true); setFormError(null);
+    if (!selItem || !adjDelta) return; setBusy(true); setFormError(null);
     try {
-      await authPost(`/api/inventory/items/${selItem.id}/adjust`, token, { delta: parseFloat(adjDelta), reason: adjReason || undefined });
+      await authPost(`/api/inventory/items/${selItem.id}/adjust`, undefined, { delta: parseFloat(adjDelta), reason: adjReason || undefined });
       qc.invalidateQueries({ queryKey: ["admin-inventory"] }); qc.invalidateQueries({ queryKey: ["admin-low-stock"] });
       toast("Stock adjusted"); closeSide();
     } catch (e) { const message = getApiErrorMessage(e, "Stock adjustment failed."); setFormError(message); toast(message, "error"); }
@@ -142,16 +139,16 @@ export default function AdminInventoryPage() {
   }
 
   async function handleCreate() {
-    if (!token || !branchId || !cName) return; setBusy(true); setFormError(null);
+    if (!branchId || !cName) return; setBusy(true); setFormError(null);
     try {
-      await authPost("/api/inventory/items", token, { branchId, name: cName, category: cCategory, unit: cUnit, currentStock: parseFloat(cStock), reorderLevel: parseFloat(cReorder) });
+      await authPost("/api/inventory/items", undefined, { branchId, name: cName, category: cCategory, unit: cUnit, currentStock: parseFloat(cStock), reorderLevel: parseFloat(cReorder) });
       qc.invalidateQueries({ queryKey: ["admin-inventory"] }); toast("Item created"); closeSide();
     } catch (e) { const message = getApiErrorMessage(e, "Item creation failed."); setFormError(message); toast(message, "error"); }
     finally { setBusy(false); }
   }
 
   if (isLoading) return <LoadingScreen message="Loading inventory..." />;
-  if (token && !canReadInventory) {
+  if (branchId && !canReadInventory) {
     return (
       <PermissionDeniedState
         title="Inventory access required"

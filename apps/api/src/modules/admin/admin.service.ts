@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -399,6 +400,9 @@ export class AdminService {
   async updateBranchSettings(branchId: string, tenantId: string, data: UpdateBranchSettingsDto, staffId: string) {
     const branch = await this.prisma.branch.findFirst({ where: { id: branchId, tenantId } });
     if (!branch) throw new NotFoundException("Branch not found");
+    if ("featureFlagsJson" in data || "aiConfigJson" in data) {
+      throw new ForbiddenException("Feature modules are managed by the SaaS owner");
+    }
 
     const safe: Record<string, unknown> = {};
     if ("serviceChargeEnabled" in data) safe.serviceChargeEnabled = data.serviceChargeEnabled;
@@ -407,8 +411,6 @@ export class AdminService {
     if ("tipsEnabled" in data) safe.tipsEnabled = data.tipsEnabled;
     if ("tipPresetsJson" in data) safe.tipPresetsJson = data.tipPresetsJson as any;
     if ("paymentConfigJson" in data) safe.paymentConfigJson = data.paymentConfigJson as any;
-    if ("featureFlagsJson" in data) safe.featureFlagsJson = data.featureFlagsJson as any;
-    if ("aiConfigJson" in data) safe.aiConfigJson = data.aiConfigJson as any;
 
     const result = await this.prisma.branchSettings.upsert({
       where: { branchId },

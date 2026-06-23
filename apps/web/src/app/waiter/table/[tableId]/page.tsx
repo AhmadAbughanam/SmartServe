@@ -4,10 +4,11 @@ import { useParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { authGet, authPost, authPatch, get } from "../../../../lib/api";
-import { getStaffToken, getStaffBranchId, getStaffName } from "../../../../lib/staff-auth";
+import { hasStaffSession, getStaffBranchId, getStaffName } from "../../../../lib/staff-auth";
 import type { TableDetail } from "../../../../lib/waiter-types";
 import type { MenuCategory, MenuItem } from "../../../../lib/types";
 import { useToast, LoadingScreen } from "../../../../components/ui";
+import { resolveAssetUrl } from "../../../../lib/media";
 import Link from "next/link";
 import { MenuCategoryIcon, menuCategoryMeta } from "../../../../components/menu-category-icon";
 
@@ -21,7 +22,6 @@ export default function TableWorkspacePage() {
   const { tableId } = useParams<{ tableId: string }>();
   const router = useRouter();
   const qc = useQueryClient();
-  const [token, setToken] = useState<string | null>(null);
   const [branchId, setBranchId] = useState<string | null>(null);
   const [staffName, setStaffName] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -30,12 +30,12 @@ export default function TableWorkspacePage() {
   const [qaNotes, setQaNotes] = useState("");
   const { toast } = useToast();
 
-  useEffect(() => { const t = getStaffToken("waiter"); if (!t) { router.push("/waiter/login"); return; } setToken(t); setBranchId(getStaffBranchId("waiter")); setStaffName(getStaffName("waiter") ?? ""); }, [router]);
+  useEffect(() => { if (!hasStaffSession("waiter")) { router.push("/waiter/login"); return; } setBranchId(getStaffBranchId("waiter")); setStaffName(getStaffName("waiter") ?? ""); }, [router]);
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ["waiter-table-detail", tableId],
-    queryFn: () => authGet<TableDetail>(`/api/waiter/tables/${tableId}`, token!),
-    enabled: !!token, refetchInterval: 6000,
+    queryFn: () => authGet<TableDetail>(`/api/waiter/tables/${tableId}`),
+    enabled: true, refetchInterval: 6000,
   });
 
   const { data: menu } = useQuery({
@@ -46,23 +46,23 @@ export default function TableWorkspacePage() {
 
   const onMutated = () => { qc.invalidateQueries({ queryKey: ["waiter-table-detail"] }); };
 
-  async function handleServe(orderId: string) { setBusy(orderId); try { await authPatch(`/api/waiter/orders/${orderId}/serve`, token!); toast("Order served"); onMutated(); } catch (e) { toast(e instanceof Error ? e.message : "Failed", "error"); } finally { setBusy(null); } }
+  async function handleServe(orderId: string) { setBusy(orderId); try { await authPatch(`/api/waiter/orders/${orderId}/serve`); toast("Order served"); onMutated(); } catch (e) { toast(e instanceof Error ? e.message : "Failed", "error"); } finally { setBusy(null); } }
 
-  async function handleClaim(orderId: string) { setBusy(`claim-${orderId}`); try { await authPatch(`/api/waiter/orders/${orderId}/claim`, token!); toast("Order assigned to you"); onMutated(); } catch (e) { toast(e instanceof Error ? e.message : "Failed to take order", "error"); } finally { setBusy(null); } }
+  async function handleClaim(orderId: string) { setBusy(`claim-${orderId}`); try { await authPatch(`/api/waiter/orders/${orderId}/claim`); toast("Order assigned to you"); onMutated(); } catch (e) { toast(e instanceof Error ? e.message : "Failed to take order", "error"); } finally { setBusy(null); } }
 
-  async function handleUpdateQty(itemId: string, qty: number) { if (!token) return; setBusy(itemId); try { await authPatch(`/api/waiter/order-items/${itemId}/quantity`, token, { quantity: qty }); toast("Quantity updated"); onMutated(); } catch (e) { toast(e instanceof Error ? e.message : "Only PENDING items can be edited", "error"); } finally { setBusy(null); } }
+  async function handleUpdateQty(itemId: string, qty: number) { setBusy(itemId); try { await authPatch(`/api/waiter/order-items/${itemId}/quantity`, undefined, { quantity: qty }); toast("Quantity updated"); onMutated(); } catch (e) { toast(e instanceof Error ? e.message : "Only PENDING items can be edited", "error"); } finally { setBusy(null); } }
 
-  async function handleCancelItem(itemId: string) { if (!token) return; setBusy(itemId); try { await authPatch(`/api/waiter/order-items/${itemId}/cancel`, token, { reason: "Waiter removed" }); toast("Item removed"); onMutated(); } catch (e) { toast(e instanceof Error ? e.message : "Only PENDING items can be removed", "error"); } finally { setBusy(null); } }
+  async function handleCancelItem(itemId: string) { setBusy(itemId); try { await authPatch(`/api/waiter/order-items/${itemId}/cancel`, undefined, { reason: "Waiter removed" }); toast("Item removed"); onMutated(); } catch (e) { toast(e instanceof Error ? e.message : "Only PENDING items can be removed", "error"); } finally { setBusy(null); } }
 
-  async function handleUpdateNotes(orderId: string, notes: string) { if (!token) return; try { await authPatch(`/api/waiter/orders/${orderId}/notes`, token, { notes }); toast("Notes saved"); } catch (e) { toast(e instanceof Error ? e.message : "Failed", "error"); } }
+  async function handleUpdateNotes(orderId: string, notes: string) { try { await authPatch(`/api/waiter/orders/${orderId}/notes`, undefined, { notes }); toast("Notes saved"); } catch (e) { toast(e instanceof Error ? e.message : "Failed", "error"); } }
 
   async function handleSendToKitchen() {
-    if (!qaItems.length || !token) return; setBusy("qa");
-    try { await authPost(`/api/waiter/tables/${tableId}/quick-add`, token, { items: qaItems.map(i => ({ menuItemId: i.menuItemId, quantity: i.qty })), specialInstructions: qaNotes || undefined }); toast(`${qaItems.reduce((s, i) => s + i.qty, 0)} items sent to kitchen`); setQaItems([]); setQaNotes(""); onMutated(); }
+    if (!qaItems.length) return; setBusy("qa");
+    try { await authPost(`/api/waiter/tables/${tableId}/quick-add`, undefined, { items: qaItems.map(i => ({ menuItemId: i.menuItemId, quantity: i.qty })), specialInstructions: qaNotes || undefined }); toast(`${qaItems.reduce((s, i) => s + i.qty, 0)} items sent to kitchen`); setQaItems([]); setQaNotes(""); onMutated(); }
     catch (e) { toast(e instanceof Error ? e.message : "Failed", "error"); } finally { setBusy(null); }
   }
 
-  async function handleClear() { if (!token) return; setBusy("clr"); try { await authPost(`/api/waiter/tables/${tableId}/clear`, token); toast("Table cleared"); router.push("/waiter/dashboard"); } catch (e) { toast(e instanceof Error ? e.message : "Failed", "error"); } finally { setBusy(null); } }
+  async function handleClear() { setBusy("clr"); try { await authPost(`/api/waiter/tables/${tableId}/clear`); toast("Table cleared"); router.push("/waiter/dashboard"); } catch (e) { toast(e instanceof Error ? e.message : "Failed", "error"); } finally { setBusy(null); } }
 
   function addToQa(mi: MenuItem) { setQaItems(p => { const e = p.find(x => x.menuItemId === mi.id); if (e) return p.map(x => x.menuItemId === mi.id ? { ...x, qty: x.qty + 1 } : x); return [...p, { menuItemId: mi.id, name: mi.name, price: parseFloat(mi.price), qty: 1 }]; }); }
 
@@ -172,7 +172,7 @@ export default function TableWorkspacePage() {
                     <button key={mi.id} onClick={() => addToQa(mi)}
                       className="rounded-[var(--r-md)] overflow-hidden text-left transition active:scale-[0.97]"
                       style={{ border: `1px solid ${inCart ? "var(--accent)" : "var(--ink-200)"}`, background: inCart ? "var(--accent-soft)" : "var(--ink-0)" }}>
-                      <div className="h-14 w-full" style={{ background: mi.imageUrl ? `url(${mi.imageUrl.startsWith("/") ? "http://localhost:4000" + mi.imageUrl : mi.imageUrl}) center/cover` : grad(mi.id) }} />
+                      <div className="h-14 w-full" style={{ background: mi.imageUrl ? `url(${resolveAssetUrl(mi.imageUrl)}) center/cover` : grad(mi.id) }} />
                       <div className="p-1.5">
                         <div className="text-[9px] font-medium truncate" style={{ color: "var(--ink-900)" }}>{mi.name}</div>
                         <div className="flex items-center justify-between mt-0.5">

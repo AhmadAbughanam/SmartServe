@@ -5,17 +5,18 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { customerGet, customerPost, get, getApiErrorMessage } from "../../../../../lib/api";
 import { useCart, cartSubtotal } from "../../../../../lib/cart-store";
-import { getCustomerToken } from "../../../../../lib/customer-auth";
+import { hasCustomerSession } from "../../../../../lib/customer-auth";
 import type { MenuCategory, MenuItem, CartItem } from "../../../../../lib/types";
 import { MenuChatAssistant } from "../../../../../components/ai/MenuChatAssistant";
 import { RecommendedForYou } from "../../../../../components/recommendations/RecommendedForYou";
 import { LoadingScreen, EmptyState, Cloche, ErrorDisplay } from "../../../../../components/ui";
+import { resolveAssetUrl } from "../../../../../lib/media";
 
 /* Burnished copper for the customer ordering screens — matches the design's amber tone. */
-const COPPER = "#c2841d";
-const COPPER_DEEP = "#9a6210";
-const COPPER_SOFT = "#fdf2e2";
-const COPPER_EDGE = "#f1d9a8";
+const COPPER = "#0c0a09";
+const COPPER_DEEP = "#000000";
+const COPPER_SOFT = "#f5f5f4";
+const COPPER_EDGE = "#e7e5e4";
 
 const photoGradients = [
   "linear-gradient(135deg, #c2841d, #6b4014)",
@@ -26,7 +27,7 @@ const photoGradients = [
   "linear-gradient(135deg, #4c1d95, #2e1065)",
 ];
 function photoGrad(id: string) { let h = 0; for (const c of id) h = ((h << 5) - h + c.charCodeAt(0)) | 0; return photoGradients[Math.abs(h) % photoGradients.length]; }
-function imgUrl(url: string | null) { if (!url) return null; return url.startsWith("/") ? `http://localhost:4000${url}` : url; }
+function imgUrl(url: string | null) { return resolveAssetUrl(url); }
 
 /* ── Top bar — back / brand / cart-with-badge ─────── */
 function TopBar({ cartCount, onBack, onCart }: { cartCount: number; onBack: () => void; onCart: () => void }) {
@@ -76,6 +77,7 @@ function FavoriteButton({ active, onToggle, label }: { active: boolean; onToggle
         event.stopPropagation();
         onToggle();
       }}
+      onKeyDown={(event) => event.stopPropagation()}
       className="flex h-7 w-7 items-center justify-center rounded-full transition active:scale-[0.94]"
       style={{ background: "rgba(255,255,255,0.95)", color: active ? "#dc2626" : "var(--ink-500)" }}
     >
@@ -86,9 +88,25 @@ function FavoriteButton({ active, onToggle, label }: { active: boolean; onToggle
 
 function RecCard({ item, onOpen, isFavorite, onToggleFavorite }: { item: MenuItem; onOpen: (item: MenuItem) => void; isFavorite: boolean; onToggleFavorite: (item: MenuItem) => void }) {
   const photo = imgUrl(item.imageUrl);
+  const disabled = item.isUnavailable;
+  function open() {
+    if (!disabled) onOpen(item);
+  }
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (disabled) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onOpen(item);
+    }
+  }
   return (
-    <button onClick={() => !item.isUnavailable && onOpen(item)} disabled={item.isUnavailable}
-      className={`min-w-[150px] flex-shrink-0 overflow-hidden rounded-[12px] text-left transition active:scale-[0.97] ${item.isUnavailable ? "opacity-40" : ""}`}
+    <div
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      aria-disabled={disabled}
+      onClick={open}
+      onKeyDown={handleKeyDown}
+      className={`min-w-[150px] flex-shrink-0 overflow-hidden rounded-[12px] text-left transition active:scale-[0.97] ${disabled ? "opacity-40" : "cursor-pointer"}`}
       style={{ background: "var(--ink-0)", border: "1px solid var(--ink-200)" }}>
       <div className="relative h-[130px] w-full" style={{ background: photo ? `url(${photo}) center/cover` : photoGrad(item.id) }}>
         <span className="absolute right-2 top-2"><FavoriteButton active={isFavorite} onToggle={() => onToggleFavorite(item)} label={`${isFavorite ? "Remove" : "Add"} ${item.name} favorite`} /></span>
@@ -102,16 +120,32 @@ function RecCard({ item, onOpen, isFavorite, onToggleFavorite }: { item: MenuIte
           </span>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
 /* ── Regular grid item card ───────────────────────── */
 function GridCard({ item, onOpen, isFavorite, onToggleFavorite }: { item: MenuItem; onOpen: (item: MenuItem) => void; isFavorite: boolean; onToggleFavorite: (item: MenuItem) => void }) {
   const photo = imgUrl(item.imageUrl);
+  const disabled = item.isUnavailable;
+  function open() {
+    if (!disabled) onOpen(item);
+  }
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (disabled) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onOpen(item);
+    }
+  }
   return (
-    <button onClick={() => !item.isUnavailable && onOpen(item)} disabled={item.isUnavailable}
-      className={`overflow-hidden rounded-[12px] text-left transition active:scale-[0.97] ${item.isUnavailable ? "opacity-40" : ""}`}
+    <div
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      aria-disabled={disabled}
+      onClick={open}
+      onKeyDown={handleKeyDown}
+      className={`overflow-hidden rounded-[12px] text-left transition active:scale-[0.97] ${disabled ? "opacity-40" : "cursor-pointer"}`}
       style={{ background: "var(--ink-0)", border: "1px solid var(--ink-200)" }}>
       <div className="relative h-[120px] w-full" style={{ background: photo ? `url(${photo}) center/cover` : photoGrad(item.id) }}>
         <span className="absolute right-2 top-2"><FavoriteButton active={isFavorite} onToggle={() => onToggleFavorite(item)} label={`${isFavorite ? "Remove" : "Add"} ${item.name} favorite`} /></span>
@@ -129,7 +163,7 @@ function GridCard({ item, onOpen, isFavorite, onToggleFavorite }: { item: MenuIt
           )}
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -341,14 +375,14 @@ export default function MenuPage() {
   const { state, dispatch } = useCart();
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
-  const [customerToken, setCustomerTokenState] = useState<string | null>(null);
+  const [hasCustomerAuth, setHasCustomerAuth] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [activeCategory, setActiveCategory] = useState<string | "ALL" | "RECOMMENDED">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const branchId = state.branchId ?? "seed-branch-1";
 
   useEffect(() => {
-    setCustomerTokenState(getCustomerToken());
+    setHasCustomerAuth(hasCustomerSession());
   }, []);
 
   const { data: categories, isLoading, error } = useQuery({
@@ -357,14 +391,14 @@ export default function MenuPage() {
   });
 
   const { refetch: refetchFavorites } = useQuery({
-    queryKey: ["menu-favorites", branchId, customerToken],
+    queryKey: ["menu-favorites", branchId, hasCustomerAuth],
     queryFn: async () => {
-      if (!customerToken) return { favoriteMenuItemIds: [] as string[] };
-      const response = await customerGet<{ favoriteMenuItemIds: string[] }>(`/api/menu/favorites?branchId=${branchId}`, customerToken);
+      if (!hasCustomerAuth) return { favoriteMenuItemIds: [] as string[] };
+      const response = await customerGet<{ favoriteMenuItemIds: string[] }>(`/api/menu/favorites?branchId=${branchId}`);
       setFavoriteIds(new Set(response.favoriteMenuItemIds));
       return response;
     },
-    enabled: !!customerToken && !!branchId,
+    enabled: hasCustomerAuth && !!branchId,
   });
 
   const cartCount = state.items.reduce((s, i) => s + i.quantity, 0);
@@ -380,7 +414,7 @@ export default function MenuPage() {
   const allMenuItems = categories?.flatMap(c => c.menuItems) ?? [];
 
   async function toggleFavorite(item: MenuItem) {
-    if (!customerToken) {
+    if (!hasCustomerAuth) {
       router.push("/customer/login");
       return;
     }
@@ -394,7 +428,7 @@ export default function MenuPage() {
     });
 
     try {
-      await customerPost(`/api/menu/items/${item.id}/favorite`, customerToken, {
+      await customerPost(`/api/menu/items/${item.id}/favorite`, undefined, {
         branchId,
         favorite: nextFavorite,
       });

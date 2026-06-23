@@ -5,10 +5,10 @@ import { Suspense } from "react";
 import { post } from "../../../../lib/api";
 import { Cloche, Sprig } from "../../../../components/ui";
 
-const COPPER = "#c2841d";
-const COPPER_SOFT = "#fdf2e2";
-const COPPER_EDGE = "#f1d9a8";
-const COPPER_INK = "#7c5511";
+const COPPER = "#0c0a09";
+const COPPER_SOFT = "#f5f5f4";
+const COPPER_EDGE = "#e7e5e4";
+const COPPER_INK = "#1c1917";
 const RUST = "#a8482a"; // deeper rusty-red used for the X circle in the design
 const OK = "#16a34a";
 const OK_DARK = "#15803d";

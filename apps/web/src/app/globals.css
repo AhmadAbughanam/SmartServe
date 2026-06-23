@@ -26,10 +26,10 @@
   --ink-900: #0c0a09;
 
   /* Single accent */
-  --accent: #f97316;
-  --accent-ink: #9a3412;
-  --accent-soft: #fff7ed;
-  --accent-edge: #fed7aa;
+  --accent: #0c0a09;
+  --accent-ink: #ffffff;
+  --accent-soft: #e7e5e4;
+  --accent-edge: #d6d3d1;
 
   /* Semantic */
   --ok: #16a34a;

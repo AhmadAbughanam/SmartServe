@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { authGet } from "../../lib/api";
-import { getStaffToken, getStaffName, getStaffRole, getStaffBranchId, getSelectedBranchId, setSelectedBranchId, clearStaffToken, getStaffPermissions } from "../../lib/staff-auth";
+import { hasStaffSession, getStaffName, getStaffRole, getStaffBranchId, getSelectedBranchId, setSelectedBranchId, clearStaffToken, getStaffPermissions } from "../../lib/staff-auth";
 import { AdminBranchContext } from "./branch-context";
 
 interface BranchOption { id: string; name: string; location: string; isActive: boolean }
@@ -73,14 +73,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
   const [permissions, setPermissions] = useState<string[]>([]);
-  const [token, setToken] = useState<string | null>(null);
   const [branchId, setBranchIdState] = useState("");
 
   useEffect(() => {
     if (pathname === "/admin/login" || pathname === "/admin") { setReady(true); return; }
-    const t = getStaffToken();
-    if (!t) { router.replace("/admin/login"); return; }
-    setToken(t);
+    if (!hasStaffSession()) { router.replace("/admin/login"); return; }
     setName(getStaffName() ?? "");
     setRole(getStaffRole() ?? "");
     setPermissions(getStaffPermissions());
@@ -94,8 +91,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const isOwner = role === "OWNER" || role === "MANAGER";
   const { data: branches } = useQuery({
     queryKey: ["admin-branches"],
-    queryFn: () => authGet<BranchOption[]>("/api/admin/branches", token!),
-    enabled: !!token && isOwner,
+    queryFn: () => authGet<BranchOption[]>("/api/admin/branches"),
+    enabled: ready && isOwner,
   });
 
   if (pathname === "/admin/login" || pathname === "/admin") return <>{children}</>;

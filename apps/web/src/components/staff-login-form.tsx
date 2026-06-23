@@ -70,6 +70,17 @@ export function StaffLoginForm({
               <div className="relative z-10 mt-6 font-mono text-[11px] tracking-wide" style={{ color: "rgba(255,255,255,0.6)" }}>&mdash; our operating principle, 2026</div>
             </div>
             <form onSubmit={handleLogin} className="flex flex-col justify-center p-10 md:p-14">
+              <button
+                type="button"
+                onClick={() => router.push("/login")}
+                aria-label="Back"
+                className="mb-7 flex h-10 w-10 items-center justify-center rounded-[12px]"
+                style={{ background: "var(--ink-0)", border: "1px solid var(--ink-200)" }}
+              >
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="var(--ink-700)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
               <div className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--accent)" }}>{subtitle}</div>
               <h1 className="mt-3.5 font-serif text-[40px] font-extrabold tracking-tight leading-none">Back at it,<em className="block font-serif italic font-medium" style={{ color: "var(--accent)" }}>boss.</em></h1>
               <p className="mt-2.5 max-w-[380px] text-sm leading-relaxed" style={{ color: "var(--ink-500)" }}>Enter your work email and password to access {title}.</p>
@@ -107,10 +118,23 @@ export function StaffLoginForm({
 
   return (
     <main className="flex min-h-screen flex-col px-6 pb-6" style={{ background: isDark ? "var(--ink-900)" : "var(--ink-0)", color: isDark ? "var(--ink-0)" : "var(--ink-900)" }}>
-      <div className="mt-6 flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md font-serif text-base font-extrabold italic"
-          style={{ background: isDark ? "var(--accent)" : "var(--ink-900)", color: isDark ? "var(--ink-900)" : "var(--ink-0)" }}>R</div>
-        <span className="font-serif text-base font-bold">Restaurant <em className="font-serif italic font-medium">OS</em></span>
+      <div className="mt-6 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md font-serif text-base font-extrabold italic"
+            style={{ background: isDark ? "var(--accent)" : "var(--ink-900)", color: isDark ? "var(--ink-900)" : "var(--ink-0)" }}>R</div>
+          <span className="font-serif text-base font-bold">Restaurant <em className="font-serif italic font-medium">OS</em></span>
+        </div>
+        <button
+          type="button"
+          onClick={() => router.push("/login")}
+          aria-label="Back"
+          className="flex h-10 w-10 items-center justify-center rounded-[12px]"
+          style={{ background: isDark ? "rgba(255,255,255,0.08)" : "var(--ink-0)", border: `1px solid ${isDark ? "rgba(255,255,255,0.16)" : "var(--ink-200)"}` }}
+        >
+          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={isDark ? "rgba(255,255,255,0.75)" : "var(--ink-700)"} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
       </div>
       <div className="mt-12">
         <div className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--accent)" }}>{subtitle}</div>

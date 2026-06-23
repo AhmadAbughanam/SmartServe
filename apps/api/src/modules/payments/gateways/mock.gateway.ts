@@ -6,8 +6,6 @@ import type {
   WebhookEvent,
 } from "../../../contracts/payment-gateway.js";
 
-const MOCK_SECRET = process.env.PAYMENT_WEBHOOK_SECRET ?? "dev-webhook-secret";
-
 /**
  * Mock payment gateway for development and testing.
  * Generates fake checkout URLs and accepts dev webhook signatures.
@@ -30,17 +28,18 @@ export class MockPaymentGateway implements PaymentGateway {
   }
 
   verifyWebhookSignature(payload: string, signature: string): boolean {
+    const mockSecret = process.env.PAYMENT_WEBHOOK_SECRET ?? "dev-webhook-secret";
     // Dev: accept simple HMAC-SHA256 or the literal dev secret
-    if (signature === MOCK_SECRET) return true;
+    if (signature === mockSecret) return true;
 
     const expected = crypto
-      .createHmac("sha256", MOCK_SECRET)
+      .createHmac("sha256", mockSecret)
       .update(payload)
       .digest("hex");
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expected),
-    );
+    const signatureBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expected);
+    if (signatureBuffer.length !== expectedBuffer.length) return false;
+    return crypto.timingSafeEqual(signatureBuffer, expectedBuffer);
   }
 
   parseWebhookEvent(payload: string): WebhookEvent {

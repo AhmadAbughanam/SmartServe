@@ -1,9 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { authGet, getApiErrorMessage } from "../../../lib/api";
-import { getStaffToken } from "../../../lib/staff-auth";
 import { useAdminBranch } from "../branch-context";
 import { ErrorDisplay, InlineAlert, LoadingScreen } from "../../../components/ui";
 
@@ -26,13 +25,11 @@ function SH({ icon, title, accent }: { icon: React.ReactNode; title: string; acc
 }
 
 export default function AdminFinancePage() {
-  const [token, setToken] = useState<string | null>(null);
   const { branchId } = useAdminBranch();
-  useEffect(() => { setToken(getStaffToken()); }, []);
 
-  const { data: summary, isLoading, isError, error, refetch } = useQuery({ queryKey: ["fin-summary", branchId], queryFn: () => authGet<FinanceSummary>(`/api/admin/finance-summary?branchId=${branchId}`, token!), enabled: !!token && !!branchId });
-  const salesQuery = useQuery({ queryKey: ["fin-sales", branchId], queryFn: () => authGet<SalesData>(`/api/analytics/sales?branchId=${branchId}`, token!), enabled: !!token && !!branchId });
-  const expensesQuery = useQuery({ queryKey: ["fin-expenses", branchId], queryFn: () => authGet<Expense[]>(`/api/admin/expenses?branchId=${branchId}`, token!), enabled: !!token && !!branchId });
+  const { data: summary, isLoading, isError, error, refetch } = useQuery({ queryKey: ["fin-summary", branchId], queryFn: () => authGet<FinanceSummary>(`/api/admin/finance-summary?branchId=${branchId}`), enabled: !!branchId });
+  const salesQuery = useQuery({ queryKey: ["fin-sales", branchId], queryFn: () => authGet<SalesData>(`/api/analytics/sales?branchId=${branchId}`), enabled: !!branchId });
+  const expensesQuery = useQuery({ queryKey: ["fin-expenses", branchId], queryFn: () => authGet<Expense[]>(`/api/admin/expenses?branchId=${branchId}`), enabled: !!branchId });
 
   if (isLoading) return <LoadingScreen message="Loading finance..." />;
   if (isError || !summary) return <ErrorDisplay message={getApiErrorMessage(error, "Finance summary is unavailable.")} onRetry={() => refetch()} />;

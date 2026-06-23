@@ -12,6 +12,7 @@ It is also explicitly a Global RMS model with one unified backend, one logical n
 - Waiter / Staff
 - Kitchen Staff
 - Restaurant Owner / Admin
+- SaaS Owner / Super Admin
 - External Payment Gateway
 - Notification Service
 - AI Engine
@@ -27,6 +28,7 @@ The current project direction includes:
 - kitchen display workflow
 - payment initiation and confirmation
 - admin management for menu, staff, branches, tables, settings, and analytics
+- SaaS owner management for global tenant visibility, store owner provisioning, SaaS analytics, and branch feature-module control
 - AI recommendation, forecasting, anomaly detection, and chatbot support
 - cashier/POS and shift workflows
 - service requests and table-state coordination
@@ -48,6 +50,7 @@ The current project direction includes:
 ## Non-Negotiable Design Rules
 
 - Every operational record must be tenant-scoped and, where relevant, branch-scoped.
+- SaaS owner access is global and intentionally outside tenant staff rosters; it must be guarded separately from tenant/branch staff authorization.
 - Frontend clients must not call AI services directly.
 - Payment, notification, storage, and AI integrations should be abstracted behind contracts.
 - Realtime updates should be event-based and suitable for order lifecycle, kitchen updates, and customer status sync.
@@ -57,18 +60,30 @@ The current project direction includes:
 ## Current Repository State
 
 - Monorepo scaffold exists.
-- `apps/web` contains customer, waiter, kitchen, and admin route surfaces with shared loading, empty, error, permission, and inline alert UI primitives for demo-safe frontend failure handling.
-- `apps/api` contains a NestJS modular-monolith API with implemented operational modules, provider contracts, and MVP loyalty infrastructure.
+- `apps/web` contains customer, waiter, kitchen, admin, and SaaS owner route surfaces with shared loading, empty, error, permission, and inline alert UI primitives for demo-safe frontend failure handling. Login entry is unified at `/login` for customers/staff; SaaS owner access is at `/saas/login`.
+- `apps/api` contains a NestJS modular-monolith API with implemented operational modules, provider contracts, MVP loyalty infrastructure, and a SaaS admin boundary guarded by `User.globalRole = SAAS_OWNER`.
+- Tenant admins cannot modify branch feature modules or AI module settings; those settings are controlled through the SaaS owner API/UI.
+- The SaaS owner surface now includes a dedicated `/saas/ai` AI Control Center backed by SaaS-only AI endpoints for global branch monitoring, per-branch menu-chat diagnostics, validated AI control edits, and rollout presets built on `BranchSettings.aiConfigJson`.
+- The SaaS owner surface now uses a consolidated primary IA: `/saas`, `/saas/tenants`, `/saas/operations`, `/saas/controls`, `/saas/billing`, `/saas/system-health`, and `/saas/settings`.
+- Legacy SaaS routes remain valid as compatibility entry points: `/saas/sessions` redirects into `Operations`, `/saas/owners-staff` redirects into `Tenants`, `/saas/ai` and `/saas/features` redirect into `Controls`, and `/saas/revenue` redirects into `Billing`.
+- `Billing` now owns SaaS-commercial concerns and keeps tenant restaurant-sales analytics explicitly labeled as `Network Sales` rather than SaaS revenue.
+- The SaaS backend now also exposes tenant lifecycle endpoints and SaaS billing endpoints, with `TenantSubscription` and `SaasInvoice` as the billing persistence model.
+- The SaaS owner surface now also includes `/saas/system-health`, backed by SaaS-only health endpoints for dependency checks, provider/config status visibility, recent platform incident feeds, and branch-level fault pressure summaries.
+- The SaaS owner surface now also includes `/saas/audit-logs`, backed by SaaS-only audit-log endpoints for cross-tenant audit, operational, and payment event investigation with normalized feed drill-down and actor/branch concentration summaries.
+- The SaaS owner surface now also includes `/saas/settings`, backed by a platform-level singleton settings model for global SaaS identity, maintenance posture, provisioning policy, announcement banners, runtime configuration visibility, and saved settings history.
+- Customer OTP delivery uses a backend SMS adapter. Local development can use the noop/dev OTP path; production defaults to Twilio and requires provider credentials.
+- Menu image uploads now use a backend-managed S3-compatible storage path backed by MinIO in Compose; the API stores object references as `/api/menu/images/:key` and serves the bytes back through NestJS.
 - Geo-fencing is implemented as a controlled backend add-on for public QR/table session start. Branch-level settings drive enforcement, the frontend only forwards browser coordinates, and operational logs do not store raw latitude/longitude.
 - `apps/ai-services` contains a FastAPI shell.
 - Docker Compose includes PostgreSQL, Redis, and MinIO.
+- Production Compose can either build locally or pull GHCR-published API/web/AI images through the same service definitions, so a single-node VPS can move from manual builds toward pull-based CD without changing runtime topology.
 - Shared TypeScript contracts exist for roles, scopes, status values, health payloads, and domain events.
 - Prisma is now the canonical place for the initial data model draft.
 
 ## Current Unknowns
 
 - Final payment provider choice
-- Final auth provider choice beyond JWT + refresh tokens
+- Final staff refresh-token policy beyond finite JWT access cookies
 - Whether staff UX remains one app area or becomes more separated
 - Exact rollout order for deeper optional module upgrades such as loyalty expiry jobs, customer-facing loyalty wallets, and integrations
 - Rollout timing for full geo-fencing admin UI, staff check-in enforcement, waiter action enforcement, and payment-start enforcement

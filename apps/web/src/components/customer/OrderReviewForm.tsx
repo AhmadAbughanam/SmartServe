@@ -4,10 +4,10 @@ import { useState } from "react";
 import { post } from "../../lib/api";
 import type { Order } from "../../lib/types";
 
-const COPPER = "#c2841d";
-const COPPER_SOFT = "#fdf2e2";
-const COPPER_EDGE = "#f1d9a8";
-const COPPER_INK = "#7c5511";
+const COPPER = "#0c0a09";
+const COPPER_SOFT = "#f5f5f4";
+const COPPER_EDGE = "#e7e5e4";
+const COPPER_INK = "#1c1917";
 
 const ISSUE_TAGS = [
   { value: "COLD", label: "Cold food" },

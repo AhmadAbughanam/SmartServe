@@ -1,6 +1,7 @@
 import { Module, type MiddlewareConsumer, type NestModule } from "@nestjs/common";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { RequestLoggerMiddleware } from "./common/request-logger.middleware.js";
+import { MetricsModule } from "./modules/metrics/metrics.module.js";
 import { AdminModule } from "./modules/admin/admin.module.js";
 import { AiModule } from "./modules/ai/ai.module.js";
 import { AnalyticsModule } from "./modules/analytics/analytics.module.js";
@@ -34,10 +35,12 @@ import { ReviewsModule } from "./modules/reviews/reviews.module.js";
 import { WaiterModule } from "./modules/waiter/waiter.module.js";
 import { NotificationsModule } from "./modules/notifications/notifications.module.js";
 import { GeoFencingModule } from "./modules/geofencing/geofencing.module.js";
+import { SaasAdminModule } from "./modules/saas-admin/saas-admin.module.js";
 
 @Module({
   imports: [
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    MetricsModule,
     PrismaModule,
     HealthModule,
     AuthModule,
@@ -71,6 +74,7 @@ import { GeoFencingModule } from "./modules/geofencing/geofencing.module.js";
     WaiterModule,
     NotificationsModule,
     GeoFencingModule,
+    SaasAdminModule,
   ],
 })
 export class AppModule implements NestModule {

@@ -40,7 +40,8 @@ async function bootstrap() {
     origin: env.isDev ? true : env.corsOrigins,
     credentials: true,
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token", "X-Request-ID"],
+    exposedHeaders: ["X-Request-ID"],
   });
 
   app.setGlobalPrefix("api");

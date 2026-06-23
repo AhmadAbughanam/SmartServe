@@ -9,7 +9,7 @@ groups:
     rules:
       # API unreachable for 2 minutes
       - alert: ApiDown
-        expr: up{job="api-health"} == 0
+        expr: probe_success{job="api-health"} == 0
         for: 2m
         labels:
           severity: critical
@@ -19,7 +19,7 @@ groups:
 
       # Nginx unreachable for 2 minutes
       - alert: NginxDown
-        expr: up{job="nginx-health"} == 0
+        expr: probe_success{job="nginx-health"} == 0
         for: 2m
         labels:
           severity: critical
@@ -29,7 +29,7 @@ groups:
 
       # AI service unreachable for 10 minutes (non-critical)
       - alert: AiServiceDown
-        expr: up{job="ai-health"} == 0
+        expr: probe_success{job="ai-health"} == 0
         for: 10m
         labels:
           severity: warning

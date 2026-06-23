@@ -1,4 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { NoSuchKey } from "@aws-sdk/client-s3";
+import { env } from "../../config/env.js";
+import { OBJECT_STORAGE, type ObjectStorage } from "../../contracts/object-storage.js";
 import { PrismaService } from "../../prisma/prisma.service.js";
 import { RealtimeService } from "../realtime/realtime.service.js";
 import type { CreateCategoryDto } from "./dto/create-category.dto.js";
@@ -7,9 +10,12 @@ import type { UpdateMenuItemDto } from "./dto/update-menu-item.dto.js";
 
 @Injectable()
 export class MenuService {
+  private readonly managedImagePrefix = "/api/menu/images/";
+
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(RealtimeService) private readonly realtime: RealtimeService,
+    @Inject(OBJECT_STORAGE) private readonly objectStorage: ObjectStorage,
   ) {}
 
   /**
@@ -313,5 +319,77 @@ export class MenuService {
     }
 
     return updated;
+  }
+
+  async storeMenuItemImage(
+    itemId: string,
+    tenantId: string,
+    file: {
+      buffer: Buffer;
+      mimetype: string;
+      originalname: string;
+    },
+  ) {
+    const item = await this.prisma.menuItem.findUnique({
+      where: { id: itemId },
+      select: { id: true, tenantId: true, imageUrl: true },
+    });
+    if (!item || item.tenantId !== tenantId) {
+      throw new NotFoundException("Menu item not found");
+    }
+
+    const key = this.buildManagedImageKey(item.id, file.originalname);
+    await this.objectStorage.putObject({
+      bucket: env.s3Bucket,
+      key,
+      body: file.buffer,
+      contentType: file.mimetype,
+    });
+
+    const imageUrl = `${this.managedImagePrefix}${key}`;
+    const updated = await this.prisma.menuItem.update({
+      where: { id: itemId },
+      data: { imageUrl },
+      include: { additions: true },
+    });
+
+    const previousKey = this.extractManagedImageKey(item.imageUrl);
+    if (previousKey && previousKey !== key) {
+      await this.objectStorage.deleteObject({
+        bucket: env.s3Bucket,
+        key: previousKey,
+      }).catch(() => undefined);
+    }
+
+    return updated;
+  }
+
+  async getManagedMenuImage(imageKey: string) {
+    try {
+      return await this.objectStorage.getObject({
+        bucket: env.s3Bucket,
+        key: imageKey,
+      });
+    } catch (error) {
+      if (error instanceof NoSuchKey) {
+        throw new NotFoundException("Menu image not found");
+      }
+      throw error;
+    }
+  }
+
+  private buildManagedImageKey(itemId: string, originalname: string) {
+    const ext = this.safeExtension(originalname);
+    return `menu-${itemId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
+  }
+
+  private extractManagedImageKey(imageUrl?: string | null) {
+    if (!imageUrl?.startsWith(this.managedImagePrefix)) return null;
+    return imageUrl.slice(this.managedImagePrefix.length);
+  }
+
+  private safeExtension(originalname: string) {
+    const match = originalname.toLowerCase().match(/\.(jpg|jpeg|png|webp|gif)$/);
+    return match ? `.${match[1]}` : "";
   }
 }

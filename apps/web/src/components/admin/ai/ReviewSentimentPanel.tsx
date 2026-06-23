@@ -66,10 +66,8 @@ function minutesText(value: number | null) {
 
 export function ReviewSentimentPanel({
   branchId,
-  token,
 }: {
   branchId: string;
-  token: string | null;
 }) {
   const [from, setFrom] = useState(() => daysAgoDate(6));
   const [to, setTo] = useState(todayDate);
@@ -98,8 +96,8 @@ export function ReviewSentimentPanel({
     error,
   } = useQuery({
     queryKey: ["review-sentiment", branchId, from, to, menuItemId],
-    queryFn: () => authGet<ReviewSentimentResponse>(sentimentQuery, token!),
-    enabled: !!token && !!branchId && !!from && !!to,
+    queryFn: () => authGet<ReviewSentimentResponse>(sentimentQuery),
+    enabled: !!branchId && !!from && !!to,
   });
 
   const topComplaint = sentiment?.commonIssues[0];

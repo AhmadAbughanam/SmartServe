@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { authGet } from "../../../lib/api";
-import { getStaffToken } from "../../../lib/staff-auth";
 import {
   BusinessInsightsResponse,
   InsightPriority,
@@ -28,7 +27,6 @@ const priorityStyles: Record<InsightPriority, string> = {
 };
 
 export function BusinessInsightsPanel({ branchId }: BusinessInsightsPanelProps) {
-  const [token, setToken] = useState<string | null>(null);
   const [from, setFrom] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 7);
@@ -42,14 +40,10 @@ export function BusinessInsightsPanel({ branchId }: BusinessInsightsPanelProps) 
     return `/api/admin/ai/business-insights?${params.toString()}`;
   }, [branchId, from, to]);
 
-  useEffect(() => {
-    setToken(getStaffToken());
-  }, []);
-
   const { data, isLoading, error, refetch } = useQuery<BusinessInsightsResponse>({
     queryKey: ["business-insights", branchId, from, to],
-    queryFn: () => authGet<BusinessInsightsResponse>(queryPath, token!),
-    enabled: !!token && !!from && !!to,
+    queryFn: () => authGet<BusinessInsightsResponse>(queryPath),
+    enabled: !!from && !!to,
     refetchInterval: 60000, // Auto-refresh every minute
   });
 

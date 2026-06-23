@@ -1,0 +1,10 @@
+apiVersion: 1
+
+providers:
+  - name: Smart Restaurant OS
+    folder: Smart Restaurant OS
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

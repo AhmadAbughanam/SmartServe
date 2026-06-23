@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect, useCallback } from "react";
 import { authGet, authPatch, authPost, ApiError, getApiErrorMessage } from "../../../lib/api";
-import { getStaffToken, getStaffBranchId, getStaffName, getStaffPermissions, getStaffRole, clearStaffToken } from "../../../lib/staff-auth";
+import { hasStaffSession, getStaffBranchId, getStaffName, getStaffPermissions, getStaffRole, clearStaffToken } from "../../../lib/staff-auth";
 import type { KdsOrder, KdsOrderItem, KitchenStation } from "../../../lib/kds-types";
 import { EmptyState, InlineAlert, LoadingScreen, PermissionDeniedState } from "../../../components/ui";
 
@@ -41,7 +41,7 @@ function isKitchenActiveOrder(order: KdsOrder) {
 }
 
 /* ── Order Card ── */
-function OrderCard({ order, token, lane, onMutated, onAuthFailure }: { order: KdsOrder; token: string; lane: "new" | "cooking" | "ready"; onMutated: () => void; onAuthFailure: () => void }) {
+function OrderCard({ order, lane, onMutated, onAuthFailure }: { order: KdsOrder; lane: "new" | "cooking" | "ready"; onMutated: () => void; onAuthFailure: () => void }) {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const mins = minsAgo(order.orderDateTime);
@@ -102,24 +102,24 @@ function OrderCard({ order, token, lane, onMutated, onAuthFailure }: { order: Kd
               </div>
               {/* Per-item actions */}
               {lane === "new" && item.kitchenStatus === "PENDING" && (
-                <button onClick={() => act(() => authPatch(`/api/kds/order-items/${item.id}/status`, token, { status: "IN_PROGRESS" }))} disabled={busy}
+                <button onClick={() => act(() => authPatch(`/api/kds/order-items/${item.id}/status`, undefined, { status: "IN_PROGRESS" }))} disabled={busy}
                   className="rounded-[var(--r-md)] px-3 py-1.5 text-[10px] font-bold transition disabled:opacity-40"
                   style={{ background: "#3b82f6", color: "var(--ink-0)" }}>Fire</button>
               )}
               {lane === "cooking" && item.kitchenStatus === "IN_PROGRESS" && (
                 <button onClick={() => act(async () => {
-                  await authPatch(`/api/kds/order-items/${item.id}/status`, token, { status: "READY" });
+                  await authPatch(`/api/kds/order-items/${item.id}/status`, undefined, { status: "READY" });
                   // If this was the last non-ready item, auto-mark order as ready
                   const otherPending = items.filter(i => i.id !== item.id && i.kitchenStatus !== "READY");
                   if (otherPending.length === 0) {
-                    try { await authPatch(`/api/kds/orders/${order.id}/ready`, token); } catch {}
+                    try { await authPatch(`/api/kds/orders/${order.id}/ready`); } catch {}
                   }
                 })} disabled={busy}
                   className="rounded-[var(--r-md)] px-3 py-1.5 text-[10px] font-bold transition disabled:opacity-40"
                   style={{ background: "var(--accent)", color: "var(--ink-0)" }}>Done</button>
               )}
               {lane === "cooking" && item.kitchenStatus === "PENDING" && (
-                <button onClick={() => act(() => authPatch(`/api/kds/order-items/${item.id}/status`, token, { status: "IN_PROGRESS" }))} disabled={busy}
+                <button onClick={() => act(() => authPatch(`/api/kds/order-items/${item.id}/status`, undefined, { status: "IN_PROGRESS" }))} disabled={busy}
                   className="rounded-[var(--r-md)] px-3 py-1.5 text-[10px] font-bold transition disabled:opacity-40"
                   style={{ border: "1px solid #3b82f6", color: "#3b82f6" }}>Fire</button>
               )}
@@ -137,14 +137,14 @@ function OrderCard({ order, token, lane, onMutated, onAuthFailure }: { order: Kd
           </InlineAlert>
         )}
         {lane === "new" && (
-          <button onClick={() => act(() => authPatch(`/api/kds/orders/${order.id}/start`, token))} disabled={busy}
+          <button onClick={() => act(() => authPatch(`/api/kds/orders/${order.id}/start`))} disabled={busy}
             className="w-full rounded-[var(--r-md)] py-2.5 text-[11px] font-bold transition disabled:opacity-40"
             style={{ background: "#3b82f6", color: "var(--ink-0)" }}>
             {busy ? "..." : "Fire All →"}
           </button>
         )}
         {lane === "cooking" && items.every(i => i.kitchenStatus === "READY") && (
-          <button onClick={() => act(() => authPatch(`/api/kds/orders/${order.id}/ready`, token))} disabled={busy}
+          <button onClick={() => act(() => authPatch(`/api/kds/orders/${order.id}/ready`))} disabled={busy}
             className="w-full rounded-[var(--r-md)] py-2.5 text-[11px] font-bold transition disabled:opacity-40"
             style={{ background: "var(--ok)", color: "var(--ink-0)" }}>
             {busy ? "..." : "Mark Ready ✓"}
@@ -171,7 +171,6 @@ function OrderCard({ order, token, lane, onMutated, onAuthFailure }: { order: Kd
 /* ── Main Page ── */
 export default function KdsOrdersPage() {
   const router = useRouter();
-  const [token, setToken] = useState<string | null>(null);
   const [branchId, setBranchId] = useState<string | null>(null);
   const [staffName, setLocalName] = useState("");
   const [isOffline, setIsOffline] = useState(false);
@@ -185,8 +184,8 @@ export default function KdsOrdersPage() {
   useEffect(() => {
     let active = true;
     async function loadSession() {
-    const t = getStaffToken("kitchen"); const b = getStaffBranchId("kitchen");
-    if (!t) { router.push("/kitchen/login"); return; }
+    const b = getStaffBranchId("kitchen");
+    if (!hasStaffSession("kitchen")) { router.push("/kitchen/login"); return; }
     const role = getStaffRole("kitchen");
     const permissions = getStaffPermissions("kitchen");
     const canUseKds =
@@ -198,14 +197,14 @@ export default function KdsOrdersPage() {
       return;
     }
       try {
-        const session = await authGet<StaffSession>("/api/auth/me", t);
+        const session = await authGet<StaffSession>("/api/auth/me");
         const serverCanUseKds =
           ["CHEF", "KITCHEN_LEAD", "OWNER", "MANAGER"].includes(session.primaryRole) &&
           session.permissions.includes("kds:read") &&
           session.permissions.includes("kds:write");
         if (!serverCanUseKds) throw new ApiError(403, { message: "Wrong workspace session" });
         if (!active) return;
-        setToken(t); setBranchId(session.branchId || b); setLocalName(getStaffName("kitchen") ?? "");
+        setBranchId(session.branchId || b); setLocalName(getStaffName("kitchen") ?? "");
         try { const c = localStorage.getItem(CACHE_KEY); if (c) setCachedOrders(JSON.parse(c)); } catch {}
       } catch (error) {
         if (error instanceof ApiError && error.status === 403) {
@@ -233,9 +232,9 @@ export default function KdsOrdersPage() {
   const { data: orders, refetch } = useQuery({
     queryKey: ["kds-queue", branchId, stationFilter],
     queryFn: async () => {
-      if (!token || !branchId) return [];
+      if (!branchId) return [];
       try {
-        const d = await authGet<KdsOrder[]>(`/api/kds/orders?branchId=${branchId}${stationQuery}`, token);
+        const d = await authGet<KdsOrder[]>(`/api/kds/orders?branchId=${branchId}${stationQuery}`);
         const activeOrders = d.filter(isKitchenActiveOrder);
         setIsOffline(false);
         localStorage.setItem(CACHE_KEY, JSON.stringify(activeOrders));
@@ -244,21 +243,21 @@ export default function KdsOrdersPage() {
       }
       catch (e) { if (e instanceof ApiError && e.status === 401) { clearStaffToken("kitchen"); router.push("/kitchen/login"); return []; } setIsOffline(true); return cachedOrders; }
     },
-    enabled: !!token && !!branchId, refetchInterval: POLL_MS,
+    enabled: !!branchId, refetchInterval: POLL_MS,
   });
 
   const { data: stations = [] } = useQuery({
     queryKey: ["kds-stations", branchId],
-    queryFn: async () => { if (!token || !branchId) return []; try { return await authGet<KitchenStation[]>(`/api/kds/stations?branchId=${branchId}`, token); } catch { return []; } },
-    enabled: !!token && !!branchId,
+    queryFn: async () => { if (!branchId) return []; try { return await authGet<KitchenStation[]>(`/api/kds/stations?branchId=${branchId}`); } catch { return []; } },
+    enabled: !!branchId,
   });
 
   // KDS stats from backend (real avg prep time, today only)
   interface KdsStats { avgPrepMinutes: number; completedToday: number; totalToday: number; date: string }
   const { data: stats } = useQuery({
     queryKey: ["kds-stats", branchId],
-    queryFn: async () => { if (!token || !branchId) return null; try { return await authGet<KdsStats>(`/api/kds/stats?branchId=${branchId}`, token); } catch { return null; } },
-    enabled: !!token && !!branchId, refetchInterval: POLL_MS,
+    queryFn: async () => { if (!branchId) return null; try { return await authGet<KdsStats>(`/api/kds/stats?branchId=${branchId}`); } catch { return null; } },
+    enabled: !!branchId, refetchInterval: POLL_MS,
   });
 
   const handleMutated = useCallback(() => { refetch(); }, [refetch]);
@@ -276,9 +275,11 @@ export default function KdsOrdersPage() {
   }, [router]);
 
   useEffect(() => {
-    if (!token || !branchId) return;
+    if (!branchId) return;
 
-    const source = new EventSource(`${API_BASE}/api/realtime/branches/${encodeURIComponent(branchId)}/events?token=${encodeURIComponent(token)}`);
+    const source = new EventSource(`${API_BASE}/api/realtime/branches/${encodeURIComponent(branchId)}/events`, {
+      withCredentials: true,
+    });
 
     const handleOrderServed = (event: MessageEvent) => {
       try {
@@ -305,7 +306,7 @@ export default function KdsOrdersPage() {
       source.removeEventListener("ORDER_PLACED", handleOrderRefresh);
       source.close();
     };
-  }, [token, branchId, refetch, removeServedOrderFromCache]);
+  }, [branchId, refetch, removeServedOrderFromCache]);
 
   const display = (orders ?? cachedOrders).filter(isKitchenActiveOrder);
   const q = searchQuery.toLowerCase();
@@ -324,7 +325,7 @@ export default function KdsOrdersPage() {
     return <PermissionDeniedState title="Kitchen access required" description="This account cannot use the kitchen display for the selected branch." />;
   }
 
-  if (!token) return <LoadingScreen message="Opening kitchen display..." />;
+  if (!branchId) return <LoadingScreen message="Opening kitchen display..." />;
 
   // Offline state
   if (isOffline && cachedOrders.length === 0) {
@@ -444,7 +445,7 @@ export default function KdsOrdersPage() {
                 setBulkError(null);
                 try {
                   for (const o of newOrders) {
-                    await authPatch(`/api/kds/orders/${o.id}/start`, token!);
+                    await authPatch(`/api/kds/orders/${o.id}/start`);
                   }
                   handleMutated();
                 } catch (error) {
@@ -463,7 +464,7 @@ export default function KdsOrdersPage() {
           </div>
           <div className="flex-1 overflow-auto p-3" style={{ background: "#fafbff" }}>
             {newOrders.length === 0 && <div className="flex flex-col items-center py-12 text-center"><span className="text-[11px]" style={{ color: "var(--ink-400)" }}>No new orders</span></div>}
-            {newOrders.map(o => <OrderCard key={o.id} order={o} token={token!} lane="new" onMutated={handleMutated} onAuthFailure={handleAuthFailure} />)}
+            {newOrders.map(o => <OrderCard key={o.id} order={o} lane="new" onMutated={handleMutated} onAuthFailure={handleAuthFailure} />)}
           </div>
         </div>
 
@@ -477,7 +478,7 @@ export default function KdsOrdersPage() {
           </div>
           <div className="flex-1 overflow-auto p-3" style={{ background: "#fffcf8" }}>
             {cookingOrders.length === 0 && <div className="flex flex-col items-center py-12 text-center"><span className="text-[11px]" style={{ color: "var(--ink-400)" }}>Nothing cooking</span></div>}
-            {cookingOrders.map(o => <OrderCard key={o.id} order={o} token={token!} lane="cooking" onMutated={handleMutated} onAuthFailure={handleAuthFailure} />)}
+            {cookingOrders.map(o => <OrderCard key={o.id} order={o} lane="cooking" onMutated={handleMutated} onAuthFailure={handleAuthFailure} />)}
           </div>
         </div>
 
@@ -499,7 +500,7 @@ export default function KdsOrdersPage() {
                 <span className="text-[9px] mt-0.5" style={{ color: "var(--ink-400)" }}>Completed orders will appear here</span>
               </div>
             )}
-            {readyOrders.map(o => <OrderCard key={o.id} order={o} token={token!} lane="ready" onMutated={handleMutated} onAuthFailure={handleAuthFailure} />)}
+            {readyOrders.map(o => <OrderCard key={o.id} order={o} lane="ready" onMutated={handleMutated} onAuthFailure={handleAuthFailure} />)}
           </div>
         </div>
       </div>

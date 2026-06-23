@@ -2,14 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { getStaffToken } from "../../lib/staff-auth";
+import { hasStaffSession } from "../../lib/staff-auth";
 
 export default function KitchenPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const token = getStaffToken("kitchen");
-    if (token) {
+    if (hasStaffSession("kitchen")) {
       router.replace("/kitchen/orders");
     } else {
       router.replace("/kitchen/login");

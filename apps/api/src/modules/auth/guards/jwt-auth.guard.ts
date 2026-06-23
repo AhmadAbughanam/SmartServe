@@ -38,6 +38,8 @@ export class JwtAuthGuard implements CanActivate {
 
       if (payload.type === "staff") {
         request.staff = await this.authService.resolveStaff(payload.sub);
+      } else if (payload.type === "saas") {
+        request.saasOwner = await this.authService.resolveSaasOwner(payload.sub);
       } else if (payload.type === "customer") {
         request.customer =
           await this.customerAuthService.resolveCustomer(payload.sub);

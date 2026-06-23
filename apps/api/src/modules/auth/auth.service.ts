@@ -1,9 +1,10 @@
 import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
+import { GlobalRole } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service.js";
 import { verifyPassword } from "./password.util.js";
 import { TokenService } from "./token.service.js";
 import { LogsService } from "../logs/logs.service.js";
-import type { AuthenticatedStaff } from "./types/auth.types.js";
+import type { AuthenticatedSaasOwner, AuthenticatedStaff } from "./types/auth.types.js";
 
 @Injectable()
 export class AuthService {
@@ -82,6 +83,39 @@ export class AuthService {
     };
   }
 
+  async saasOwnerLogin(email: string, password: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { email, globalRole: GlobalRole.SAAS_OWNER, isBlocked: false },
+    });
+
+    if (!user?.passwordHash) {
+      throw new UnauthorizedException("Invalid credentials");
+    }
+
+    const passwordValid = await verifyPassword(password, user.passwordHash);
+    if (!passwordValid) {
+      throw new UnauthorizedException("Invalid credentials");
+    }
+
+    const accessToken = this.tokenService.signSaasOwnerAccessToken({
+      sub: user.id,
+      email: user.email ?? email,
+      globalRole: GlobalRole.SAAS_OWNER,
+      type: "saas",
+    });
+
+    return {
+      accessToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        globalRole: user.globalRole,
+      },
+    };
+  }
+
   async resolveStaff(staffId: string): Promise<AuthenticatedStaff> {
     const staff = await this.prisma.staff.findUniqueOrThrow({
       where: { id: staffId },
@@ -104,6 +138,24 @@ export class AuthService {
       branchId: staff.branchId,
       primaryRole: staff.primaryRole,
       permissions: this.extractPermissions(staff.roleAssignments),
+    };
+  }
+
+  async resolveSaasOwner(userId: string): Promise<AuthenticatedSaasOwner> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
+
+    if (user.globalRole !== GlobalRole.SAAS_OWNER || user.isBlocked || !user.email) {
+      throw new UnauthorizedException("Invalid SaaS owner account");
+    }
+
+    return {
+      userId: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      globalRole: user.globalRole,
     };
   }
 

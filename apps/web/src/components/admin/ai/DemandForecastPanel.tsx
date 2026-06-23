@@ -33,10 +33,8 @@ function warningStyle(severity: string) {
 
 export function DemandForecastPanel({
   branchId,
-  token,
 }: {
   branchId: string;
-  token: string | null;
 }) {
   const [date, setDate] = useState(tomorrowDate);
   const [categoryId, setCategoryId] = useState("");
@@ -53,8 +51,8 @@ export function DemandForecastPanel({
 
   const { data: stations } = useQuery({
     queryKey: ["forecast-stations", branchId],
-    queryFn: () => authGet<{ id: string; name: string }[]>(`/api/kds/stations?branchId=${branchId}`, token!),
-    enabled: !!branchId && !!token,
+    queryFn: () => authGet<{ id: string; name: string }[]>(`/api/kds/stations?branchId=${branchId}`),
+    enabled: !!branchId,
   });
 
   const forecastQuery = useMemo(() => {
@@ -76,8 +74,8 @@ export function DemandForecastPanel({
     error,
   } = useQuery({
     queryKey: ["demand-forecast", branchId, date, categoryId, kitchenStationId, lookbackDays, weatherAdjustment, eventAdjustment],
-    queryFn: () => authGet<DemandForecastResponse>(forecastQuery, token!),
-    enabled: !!token && !!branchId && !!date,
+    queryFn: () => authGet<DemandForecastResponse>(forecastQuery),
+    enabled: !!branchId && !!date,
   });
 
   const peakHour = forecast?.hourlyDemand.reduce(

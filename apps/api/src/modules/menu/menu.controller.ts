@@ -1,5 +1,6 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Get,
   Inject,
@@ -7,13 +8,13 @@ import {
   Patch,
   Post,
   Query,
+  Res,
+  StreamableFile,
   UploadedFile,
   UseInterceptors,
-  BadRequestException,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { diskStorage } from "multer";
-import { extname, join } from "path";
+import { memoryStorage } from "multer";
 import { MenuService } from "./menu.service.js";
 import { CreateCategoryDto } from "./dto/create-category.dto.js";
 import { CreateMenuItemDto } from "./dto/create-menu-item.dto.js";
@@ -53,6 +54,18 @@ export class MenuController {
   @Get("items/:itemId")
   getItem(@Param("itemId") itemId: string) {
     return this.menuService.getItemById(itemId);
+  }
+
+  @Public()
+  @Get("images/:imageKey")
+  async getManagedImage(
+    @Param("imageKey") imageKey: string,
+    @Res({ passthrough: true }) res: any,
+  ) {
+    const image = await this.menuService.getManagedMenuImage(imageKey);
+    res.setHeader("Content-Type", image.contentType ?? "application/octet-stream");
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    return new StreamableFile(image.body);
   }
 
   @Get("favorites")
@@ -118,13 +131,7 @@ export class MenuController {
   @RequirePermissions("menu:write")
   @UseInterceptors(
     FileInterceptor("image", {
-      storage: diskStorage({
-        destination: join(process.cwd(), "uploads", "menu"),
-        filename: (_req, file, cb) => {
-          const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${extname(file.originalname)}`;
-          cb(null, uniqueName);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
       fileFilter: (_req, file, cb) => {
         if (!file.mimetype.startsWith("image/")) {
@@ -141,7 +148,6 @@ export class MenuController {
     @CurrentStaff() staff: AuthenticatedStaff,
   ) {
     if (!file) throw new BadRequestException("No image file provided");
-    const imageUrl = `/uploads/menu/${file.filename}`;
-    return this.menuService.updateMenuItem(itemId, staff.tenantId, { imageUrl });
+    return this.menuService.storeMenuItemImage(itemId, staff.tenantId, file);
   }
 }
