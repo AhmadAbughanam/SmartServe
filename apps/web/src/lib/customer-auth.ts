@@ -5,7 +5,7 @@ const CUST_REFRESH_KEY = "customer_refresh";
 const CUST_PHONE_KEY = "customer_phone";
 const CUST_AUTH_HINT_KEY = "customer_cookie_auth";
 const COOKIE_AUTH_SENTINEL = "__cookie_auth__";
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000").replace(/\/+$/, "");
 
 export function hasCustomerSession(): boolean {
   if (typeof window === "undefined") return false;

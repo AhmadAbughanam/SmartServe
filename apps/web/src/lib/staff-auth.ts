@@ -9,7 +9,7 @@ const PERMISSIONS_KEY = "staff_permissions";
 const SELECTED_BRANCH_KEY = "admin_selected_branch";
 const AUTH_HINT_KEY = "staff_cookie_auth";
 const COOKIE_AUTH_SENTINEL = "__cookie_auth__";
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000").replace(/\/+$/, "");
 
 export type StaffAuthScope = "default" | "waiter" | "kitchen";
 

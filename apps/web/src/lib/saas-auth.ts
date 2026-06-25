@@ -1,7 +1,7 @@
 "use client";
 
 const SAAS_HINT_KEY = "saas_owner_cookie_auth";
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000").replace(/\/+$/, "");
 
 export function setSaasOwnerSession() {
   localStorage.setItem(SAAS_HINT_KEY, "1");
