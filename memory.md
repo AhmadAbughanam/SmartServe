@@ -43,6 +43,10 @@ This file is the rolling project memory. Claude or any coding agent working in t
 
 - Updated the VPS deployment workflow to run `npm run prisma:deploy` instead of `npm run prisma:migrate`, because the previous script called `prisma migrate dev`, which is interactive and fails in GitHub Actions/SSH deployment shells.
 
+### 2026-06-25 — VPS Deploy Installs Optional Native Dependencies
+
+- Updated the VPS deployment workflow to install dependencies with `--include=optional --legacy-peer-deps` and to run `npm rebuild sharp || true` afterward so Linux-native optional packages such as Sharp's platform binaries are more likely to be present during PM2-based host deployments.
+
 ### 2026-06-20 — SaaS Notifications Surface Removed
 
 - Removed the SaaS `Notifications` page and the related sidebar section because the notifications surface is no longer part of the desired SaaS navigation.

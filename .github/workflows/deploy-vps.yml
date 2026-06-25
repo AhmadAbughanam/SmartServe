@@ -37,7 +37,10 @@ jobs:
             git reset --hard origin/main
 
             echo "== Install dependencies =="
-            npm ci || npm install
+            npm ci --include=optional --legacy-peer-deps || npm install --include=optional --legacy-peer-deps
+
+            echo "== Rebuild native optional dependencies =="
+            npm rebuild sharp || true
 
             echo "== Generate Prisma =="
             npm run prisma:generate
