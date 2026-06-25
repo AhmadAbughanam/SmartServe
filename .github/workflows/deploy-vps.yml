@@ -36,11 +36,18 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
-            echo "== Install dependencies =="
+            echo "== Install system deps for native packages =="
+            apt-get update
+            apt-get install -y build-essential python3 make g++ pkg-config
+
+            echo "== Install Node dependencies with optional deps =="
             npm ci --include=optional --legacy-peer-deps || npm install --include=optional --legacy-peer-deps
 
-            echo "== Rebuild native optional dependencies =="
-            npm rebuild sharp || true
+            echo "== Force install Linux sharp runtime =="
+            npm install sharp --include=optional --legacy-peer-deps --os=linux --cpu=x64
+
+            echo "== Verify sharp works =="
+            node -e "console.log(require('sharp').versions)"
 
             echo "== Generate Prisma =="
             npm run prisma:generate
@@ -51,6 +58,9 @@ jobs:
             echo "== Build project =="
             npm run build
 
+            echo "== Verify API build output exists =="
+            test -f apps/api/dist/apps/api/src/main.js
+
             echo "== Install/update Python AI dependencies =="
             if [ -f "apps/ai-services/requirements.txt" ]; then
               python3 -m venv .venv
@@ -59,16 +69,35 @@ jobs:
               pip install -r apps/ai-services/requirements.txt
             fi
 
-            echo "== Restart PM2 services =="
-            pm2 restart smart-api || pm2 start npm --name smart-api -- run dev:api
-            pm2 restart smart-web || pm2 start npm --name smart-web -- run dev:web
-            pm2 restart smart-ai || pm2 start bash --name smart-ai -- -lc 'cd /root/apps/SmartServe/apps/ai-services && source /root/apps/SmartServe/.venv/bin/activate && exec uvicorn app.main:app --host 127.0.0.1 --port 8000'
+            echo "== Restart PM2 API =="
+            cd "${{ secrets.VPS_PROJECT_PATH }}/apps/api"
+
+            set -a
+            source .env
+            set +a
+
+            pm2 delete smart-api || true
+            pm2 start dist/apps/api/src/main.js --name smart-api --update-env
+
+            echo "== Restart PM2 Web =="
+            cd "${{ secrets.VPS_PROJECT_PATH }}"
+            pm2 restart smart-web --update-env || pm2 start npm --name smart-web -- run start:web
+
+            echo "== Restart PM2 AI =="
+            pm2 restart smart-ai --update-env || pm2 start bash --name smart-ai -- -lc 'cd /root/apps/SmartServe/apps/ai-services && source /root/apps/SmartServe/.venv/bin/activate && exec uvicorn app.main:app --host 127.0.0.1 --port 8000'
 
             echo "== Save PM2 process list =="
             pm2 save
 
+            echo "== PM2 status =="
+            pm2 list
+
+            echo "== Listening ports =="
+            sudo ss -tulpn | grep LISTEN || true
+
             echo "== Test local services =="
             sleep 5
+
             curl -f http://127.0.0.1:4000/api/health
             curl -f http://127.0.0.1:8000/health
             curl -I http://127.0.0.1:3000
