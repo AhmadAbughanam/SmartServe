@@ -2,6 +2,7 @@ export interface PaymentIntentInput {
   amountMinor: number;
   currency: string;
   reference: string;
+  idempotencyKey?: string;
   returnUrl?: string;
   cancelUrl?: string;
   metadata?: Record<string, string>;
@@ -12,6 +13,21 @@ export interface PaymentIntentResult {
   checkoutUrl?: string;
   externalId: string;
   status: "pending" | "authorized" | "paid" | "failed";
+}
+
+export interface RefundInput {
+  paymentReference: string;
+  amountMinor: number;
+  idempotencyKey?: string;
+  reason?: string;
+}
+
+export interface RefundResult {
+  provider: string;
+  externalId?: string;
+  status: "pending" | "completed" | "failed";
+  providerStatus?: string;
+  failureReason?: string;
 }
 
 export interface WebhookEvent {
@@ -26,6 +42,7 @@ export interface WebhookEvent {
 export interface PaymentGateway {
   readonly name: string;
   createIntent(input: PaymentIntentInput): Promise<PaymentIntentResult>;
+  refund(input: RefundInput): Promise<RefundResult>;
   verifyWebhookSignature(payload: string, signature: string): boolean;
   parseWebhookEvent(payload: string): WebhookEvent;
 }

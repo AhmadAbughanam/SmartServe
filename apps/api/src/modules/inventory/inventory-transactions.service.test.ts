@@ -7,7 +7,6 @@ import {
   OrderSource,
   OrderStatus,
   SessionStatus,
-  StaffRoleCode,
   TableStatus,
   TaxClass,
 } from "@prisma/client";
@@ -16,6 +15,10 @@ import { RealtimeService } from "../realtime/realtime.service.js";
 import { BranchAccessService } from "../auth/branch-access.service.js";
 import { OrdersService } from "../orders/orders.service.js";
 import { InventoryService } from "./inventory.service.js";
+
+const StaffRoleCode = {
+  WAITER: "WAITER",
+} as const;
 
 const prisma = new PrismaService();
 const realtime = new RealtimeService();

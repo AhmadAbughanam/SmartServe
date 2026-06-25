@@ -88,15 +88,23 @@ export class PaymentsController {
   @Post("payments/webhook/:provider")
   async handleWebhook(
     @Param("provider") provider: string,
-    @Req() req: Request,
-    @Headers("x-webhook-signature") signature: string,
+    @Req() req: RawBodyRequest<Request>,
+    @Headers("stripe-signature") stripeSignature: string | undefined,
+    @Headers("x-webhook-signature") fallbackSignature: string | undefined,
   ) {
     const gateway = getGatewayByName(provider);
     if (!gateway) {
       throw new BadRequestException(`Unknown provider: ${provider}`);
     }
 
-    const payload = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+    const signature = provider === "stripe" ? stripeSignature : (stripeSignature ?? fallbackSignature);
+    const payload =
+      req.rawBody?.toString("utf8")
+      ?? (typeof req.body === "string" ? req.body : JSON.stringify(req.body));
+
+    if (provider === "stripe" && !req.rawBody) {
+      throw new BadRequestException("Missing raw webhook body");
+    }
 
     if (!signature || !gateway.verifyWebhookSignature(payload, signature)) {
       throw new BadRequestException("Invalid webhook signature");

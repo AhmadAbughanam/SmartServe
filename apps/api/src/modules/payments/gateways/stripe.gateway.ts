@@ -3,6 +3,8 @@ import type {
   PaymentGateway,
   PaymentIntentInput,
   PaymentIntentResult,
+  RefundInput,
+  RefundResult,
   WebhookEvent,
 } from "../../../contracts/payment-gateway.js";
 
@@ -20,8 +22,16 @@ const STRIPE_API = "https://api.stripe.com/v1";
 export class StripePaymentGateway implements PaymentGateway {
   readonly name = "stripe";
 
-  async createIntent(input: PaymentIntentInput): Promise<PaymentIntentResult> {
+  private getSecretKey() {
     const secretKey = process.env.STRIPE_SECRET_KEY ?? "";
+    if (!secretKey) {
+      throw new Error("STRIPE_SECRET_KEY is not configured");
+    }
+    return secretKey;
+  }
+
+  async createIntent(input: PaymentIntentInput): Promise<PaymentIntentResult> {
+    const secretKey = this.getSecretKey();
     const returnUrl = input.returnUrl ?? "http://localhost:3000/customer/payment/success";
     const cancelUrl = input.cancelUrl ?? "http://localhost:3000/customer/payment/cancel";
 
@@ -46,6 +56,7 @@ export class StripePaymentGateway implements PaymentGateway {
       headers: {
         Authorization: `Bearer ${secretKey}`,
         "Content-Type": "application/x-www-form-urlencoded",
+        "Idempotency-Key": input.idempotencyKey ?? input.reference,
       },
       body: params.toString(),
     });
@@ -61,6 +72,70 @@ export class StripePaymentGateway implements PaymentGateway {
       externalId: session.id ?? "",
       checkoutUrl: session.url,
       status: "pending" as const,
+    };
+  }
+
+  async refund(input: RefundInput): Promise<RefundResult> {
+    const secretKey = this.getSecretKey();
+
+    const sessionResponse = await fetch(
+      `${STRIPE_API}/checkout/sessions/${encodeURIComponent(input.paymentReference)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+        },
+      },
+    );
+    const session = await sessionResponse.json() as {
+      id?: string;
+      payment_intent?: string;
+      error?: { message?: string };
+    };
+
+    if (!sessionResponse.ok || !session.payment_intent) {
+      throw new Error(
+        `Stripe checkout session lookup failed: ${session.error?.message ?? JSON.stringify(session)}`,
+      );
+    }
+
+    const params = new URLSearchParams();
+    params.set("payment_intent", session.payment_intent);
+    params.set("amount", String(input.amountMinor));
+    if (input.reason) {
+      params.set("metadata[reason]", input.reason);
+    }
+
+    const refundResponse = await fetch(`${STRIPE_API}/refunds`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Idempotency-Key": input.idempotencyKey ?? `${input.paymentReference}:${input.amountMinor}`,
+      },
+      body: params.toString(),
+    });
+    const refund = await refundResponse.json() as {
+      id?: string;
+      status?: string;
+      failure_reason?: string | null;
+      error?: { message?: string };
+    };
+
+    if (!refundResponse.ok) {
+      throw new Error(`Stripe refund failed: ${refund.error?.message ?? JSON.stringify(refund)}`);
+    }
+
+    return {
+      provider: "stripe",
+      externalId: refund.id,
+      status:
+        refund.status === "succeeded"
+          ? "completed"
+          : refund.status === "failed" || refund.status === "canceled"
+            ? "failed"
+            : "pending",
+      providerStatus: refund.status,
+      failureReason: refund.failure_reason ?? undefined,
     };
   }
 

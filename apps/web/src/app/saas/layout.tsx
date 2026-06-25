@@ -162,7 +162,7 @@ export default function SaasLayout({ children }: { children: ReactNode }) {
                 <SaasBadge label="Demo" />
                 <SaasBadge label="Owner" tone="ok" />
               </div>
-              <div className="text-[14px] font-semibold" style={{ color: "var(--ink-900)" }}>{me.data?.email ?? "saas@demo.com"}</div>
+              <div className="text-[14px] font-semibold" style={{ color: "var(--ink-900)" }}>{me.data?.email ?? "platform owner"}</div>
               <div className="mt-2 text-[12px]" style={{ color: "var(--ink-500)" }}>Global platform controls</div>
             </div>
 

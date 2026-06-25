@@ -26,7 +26,7 @@ export function hasCustomerSession(): boolean {
 export function getCustomerToken(): string | null {
   return hasCustomerSession() ? COOKIE_AUTH_SENTINEL : null;
 }
-export function setCustomerToken(_t: string) {
+export function setCustomerToken(_t?: string | null) {
   localStorage.removeItem(CUST_TOKEN_KEY);
   if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(CUST_TOKEN_KEY);
   localStorage.setItem(CUST_AUTH_HINT_KEY, "1");
@@ -35,7 +35,7 @@ export function setCustomerToken(_t: string) {
 export function getCustomerRefresh(): string | null {
   return null;
 }
-export function setCustomerRefresh(_t: string) {
+export function setCustomerRefresh(_t?: string | null) {
   if (typeof window === "undefined") return;
   localStorage.removeItem(CUST_REFRESH_KEY);
 }

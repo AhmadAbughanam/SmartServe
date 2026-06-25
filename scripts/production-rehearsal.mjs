@@ -22,7 +22,9 @@ const envFile = resolve(repoRoot, process.env.ENV_FILE ?? ".env.production");
 const httpsBase = (process.argv[2] ?? process.env.PUBLIC_BASE_URL ?? "").replace(/\/$/, "");
 const checkMonitoring = process.env.CHECK_MONITORING !== "0";
 const checkTwilio = process.env.CHECK_TWILIO !== "0";
-const requireTlsFiles = process.env.SKIP_TLS_FILES === "1" ? false : process.env.REQUIRE_TLS_FILES !== "0";
+const requireTlsFiles = process.env.SKIP_TLS_FILES === "1"
+  ? false
+  : process.env.REQUIRE_TLS_FILES === "1" || Boolean(httpsBase);
 const tlsCertPath = resolve(repoRoot, "nginx/ssl/cert.pem");
 const tlsKeyPath = resolve(repoRoot, "nginx/ssl/key.pem");
 
@@ -92,6 +94,20 @@ function run(command, args) {
   }
 }
 
+function capture(command, args) {
+  const result = spawnSync(command, args, {
+    cwd: repoRoot,
+    encoding: "utf8",
+    shell: process.platform === "win32",
+  });
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || "").trim() || `exit ${result.status}`;
+    fail(`${command} ${args.join(" ")} failed: ${detail}`);
+    return "";
+  }
+  return result.stdout;
+}
+
 function validateEnv(values) {
   const requiredSecrets = [
     "POSTGRES_PASSWORD",
@@ -149,11 +165,17 @@ try {
   }
 
   const envValues = readEnvFile(envFile);
+  run("node", [
+    "scripts/validate-production-env.mjs",
+    "--env-file",
+    envFile,
+    ...(process.env.ALLOW_MOCK_PAYMENT_PROVIDER === "1" ? ["--allow-mock"] : []),
+  ]);
   validateEnv(envValues);
 
   run("docker", ["compose", "-f", "docker-compose.prod.yml", "--env-file", envFile, "config", "--quiet"]);
   if (checkMonitoring) {
-    run("docker", [
+    const monitoringConfig = capture("docker", [
       "compose",
       "-f",
       "docker-compose.prod.yml",
@@ -162,8 +184,15 @@ try {
       "--env-file",
       envFile,
       "config",
-      "--quiet",
     ]);
+    const prometheusPrivate = /host_ip:\s*127\.0\.0\.1[\s\S]{0,200}published:\s*"9090"/.test(monitoringConfig);
+    const grafanaPrivate = /host_ip:\s*127\.0\.0\.1[\s\S]{0,200}published:\s*"3001"/.test(monitoringConfig);
+    if (!prometheusPrivate) {
+      fail("Monitoring overlay exposes Prometheus beyond localhost; keep 9090 bound to 127.0.0.1");
+    }
+    if (!grafanaPrivate) {
+      fail("Monitoring overlay exposes Grafana beyond localhost; keep 3001 bound to 127.0.0.1");
+    }
   }
 
   if (checkTwilio && envValues.get("SMS_PROVIDER") === "twilio") {

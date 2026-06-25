@@ -10,6 +10,7 @@ import {
   PaymentMethod,
   OrderPaymentStatus,
   OrderStatus,
+  Prisma,
   PayerType,
   PaymentStatus,
   RefundStatus,
@@ -24,6 +25,7 @@ import type { AuthenticatedStaff } from "../auth/types/auth.types.js";
 import { calculateOrderPaymentStatus } from "./payment-status.rules.js";
 import type { CreatePaymentDto } from "./dto/create-payment.dto.js";
 import type { CreateRefundDto } from "./dto/create-refund.dto.js";
+import { getPaymentGateway } from "./gateways/gateway-registry.js";
 
 function isOrderServedForPayment(status: OrderStatus): boolean {
   return status === OrderStatus.SERVED || status === OrderStatus.COMPLETED;
@@ -373,6 +375,7 @@ export class PaymentsService {
     paymentId: string,
     dto: CreateRefundDto,
     staff: AuthenticatedStaff,
+    gateway?: import("../../contracts/payment-gateway.js").PaymentGateway,
   ) {
     const payment = await this.prisma.payment.findUnique({
       where: { id: paymentId },
@@ -389,19 +392,26 @@ export class PaymentsService {
       );
     }
 
-    // Validate refund doesn't exceed payment amount
-    const existingRefundSum = payment.refunds
-      .filter((r) => r.status === RefundStatus.COMPLETED)
-      .reduce((sum, r) => sum.add(r.amount), new Decimal(0));
-
     const newRefundAmount = new Decimal(dto.amount);
-    if (existingRefundSum.add(newRefundAmount).gt(payment.amount)) {
-      throw new ConflictException(
-        `Refund total would exceed payment amount. Payment: ${payment.amount}, already refunded: ${existingRefundSum}, requested: ${dto.amount}`,
-      );
-    }
+    const usesProviderRefund = gateway
+      ? payment.paymentMethod === PaymentMethod.CARD && !!payment.paymentReference
+      : this.isGatewayManagedPayment(payment);
+    const reservedRefund = await this.prisma.$transaction(async (tx) => {
+      const currentPayment = await tx.payment.findUniqueOrThrow({
+        where: { id: paymentId },
+        include: { refunds: true },
+      });
 
-    const result = await this.prisma.$transaction(async (tx) => {
+      const reservedRefundSum = currentPayment.refunds
+        .filter((refund) => refund.status !== RefundStatus.FAILED)
+        .reduce((sum, refund) => sum.add(refund.amount), new Decimal(0));
+
+      if (reservedRefundSum.add(newRefundAmount).gt(currentPayment.amount)) {
+        throw new ConflictException(
+          `Refund total would exceed payment amount. Payment: ${currentPayment.amount}, already reserved: ${reservedRefundSum}, requested: ${dto.amount}`,
+        );
+      }
+
       const refund = await tx.refund.create({
         data: {
           tenantId: staff.tenantId,
@@ -409,34 +419,36 @@ export class PaymentsService {
           orderId: payment.orderId,
           paymentId,
           amount: dto.amount,
-          status: RefundStatus.COMPLETED,
+          status: usesProviderRefund ? RefundStatus.PENDING : RefundStatus.COMPLETED,
           reason: dto.reason,
           createdByStaffId: staff.staffId,
         },
       });
 
-      // Recalculate order payment status
-      const allPayments = await tx.payment.findMany({
-        where: { orderId: payment.orderId },
-      });
-      const allRefunds = await tx.refund.findMany({
-        where: { orderId: payment.orderId },
-      });
+      let newPaymentStatus: OrderPaymentStatus | null = null;
+      if (!usesProviderRefund) {
+        const allPayments = await tx.payment.findMany({
+          where: { orderId: payment.orderId },
+        });
+        const allRefunds = await tx.refund.findMany({
+          where: { orderId: payment.orderId },
+        });
 
-      const order = await tx.order.findUniqueOrThrow({
-        where: { id: payment.orderId },
-      });
+        const order = await tx.order.findUniqueOrThrow({
+          where: { id: payment.orderId },
+        });
 
-      const newPaymentStatus = calculateOrderPaymentStatus(
-        order.totalAmount,
-        allPayments,
-        allRefunds,
-      );
+        newPaymentStatus = calculateOrderPaymentStatus(
+          order.totalAmount,
+          allPayments,
+          allRefunds,
+        );
 
-      await tx.order.update({
-        where: { id: payment.orderId },
-        data: { paymentStatus: newPaymentStatus },
-      });
+        await tx.order.update({
+          where: { id: payment.orderId },
+          data: { paymentStatus: newPaymentStatus },
+        });
+      }
 
       // Audit log
       await tx.auditLog.create({
@@ -453,6 +465,7 @@ export class PaymentsService {
             orderId: payment.orderId,
             amount: dto.amount,
             reason: dto.reason,
+            refundStatus: refund.status,
             orderPaymentStatus: newPaymentStatus,
           },
         },
@@ -461,21 +474,126 @@ export class PaymentsService {
       return refund;
     });
 
-    this.realtime.emit(
-      "PAYMENT_REFUNDED",
-      staff.tenantId,
-      payment.branchId,
-      {
-        refundId: result.id,
-        paymentId,
+    if (!usesProviderRefund) {
+      this.realtime.emit(
+        "PAYMENT_REFUNDED",
+        staff.tenantId,
+        payment.branchId,
+        {
+          refundId: reservedRefund.id,
+          paymentId,
+          orderId: payment.orderId,
+          sessionId: payment.sessionId,
+          amount: dto.amount,
+        },
+      );
+      this.loyaltyService.reverseForRefund(reservedRefund.id).catch((error: unknown) => {
+        console.warn("Loyalty point refund reversal failed", error);
+      });
+      void this.logsService.writePayment({
+        tenantId: staff.tenantId,
+        branchId: payment.branchId,
         orderId: payment.orderId,
         sessionId: payment.sessionId,
+        paymentId,
+        eventType: "REFUND_CREATED",
         amount: dto.amount,
-      },
-    );
-    this.loyaltyService.reverseForRefund(result.id).catch((error: unknown) => {
-      console.warn("Loyalty point refund reversal failed", error);
+        status: reservedRefund.status,
+        metadata: {
+          refundId: reservedRefund.id,
+          reason: dto.reason,
+        },
+      });
+
+      return reservedRefund;
+    }
+
+    const providerRefund = await (gateway ?? this.resolveRefundGateway()).refund({
+      paymentReference: payment.paymentReference!,
+      amountMinor: newRefundAmount.mul(100).toDecimalPlaces(0).toNumber(),
+      idempotencyKey: `refund:${payment.id}:${newRefundAmount.toFixed(2)}:${dto.reason ?? ""}`,
+      reason: dto.reason,
     });
+    const refundStatus = this.mapProviderRefundStatus(providerRefund.status);
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const refund = await tx.refund.update({
+        where: { id: reservedRefund.id },
+        data: {
+          status: refundStatus,
+          providerRefundId: providerRefund.externalId,
+          providerStatus: providerRefund.providerStatus,
+        },
+      });
+
+      let newPaymentStatus: OrderPaymentStatus | null = null;
+      if (refundStatus === RefundStatus.COMPLETED) {
+        const allPayments = await tx.payment.findMany({
+          where: { orderId: payment.orderId },
+        });
+        const allRefunds = await tx.refund.findMany({
+          where: { orderId: payment.orderId },
+        });
+
+        const order = await tx.order.findUniqueOrThrow({
+          where: { id: payment.orderId },
+        });
+
+        newPaymentStatus = calculateOrderPaymentStatus(
+          order.totalAmount,
+          allPayments,
+          allRefunds,
+        );
+
+        await tx.order.update({
+          where: { id: payment.orderId },
+          data: { paymentStatus: newPaymentStatus },
+        });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          tenantId: staff.tenantId,
+          branchId: payment.branchId,
+          actorStaffId: staff.staffId,
+          actionCode: "REFUND_CREATED",
+          entityType: "Refund",
+          entityId: refund.id,
+          afterJson: {
+            refundId: refund.id,
+            paymentId,
+            orderId: payment.orderId,
+            amount: dto.amount,
+            reason: dto.reason,
+            refundStatus,
+            providerRefundId: providerRefund.externalId,
+            providerStatus: providerRefund.providerStatus,
+            providerFailureReason: providerRefund.failureReason,
+            orderPaymentStatus: newPaymentStatus,
+          },
+        },
+      });
+
+      return refund;
+    });
+
+    if (result.status === RefundStatus.COMPLETED) {
+      this.realtime.emit(
+        "PAYMENT_REFUNDED",
+        staff.tenantId,
+        payment.branchId,
+        {
+          refundId: result.id,
+          paymentId,
+          orderId: payment.orderId,
+          sessionId: payment.sessionId,
+          amount: dto.amount,
+        },
+      );
+      this.loyaltyService.reverseForRefund(result.id).catch((error: unknown) => {
+        console.warn("Loyalty point refund reversal failed", error);
+      });
+    }
     void this.logsService.writePayment({
       tenantId: staff.tenantId,
       branchId: payment.branchId,
@@ -484,10 +602,13 @@ export class PaymentsService {
       paymentId,
       eventType: "REFUND_CREATED",
       amount: dto.amount,
-      status: RefundStatus.COMPLETED,
+      status: result.status,
       metadata: {
         refundId: result.id,
         reason: dto.reason,
+        providerRefundId: result.providerRefundId,
+        providerStatus: result.providerStatus,
+        providerFailureReason: providerRefund.failureReason,
       },
     });
 
@@ -603,6 +724,64 @@ export class PaymentsService {
       .reduce((sum, r) => sum.add(r.amount), new Decimal(0));
   }
 
+  private isGatewayManagedPayment(payment: {
+    paymentMethod: PaymentMethod;
+    paymentReference: string | null;
+  }) {
+    if (payment.paymentMethod !== PaymentMethod.CARD || !payment.paymentReference) {
+      return false;
+    }
+    return payment.paymentReference.startsWith("cs_") || payment.paymentReference.startsWith("mock_");
+  }
+
+  private mapProviderRefundStatus(status: "pending" | "completed" | "failed") {
+    if (status === "completed") return RefundStatus.COMPLETED;
+    if (status === "failed") return RefundStatus.FAILED;
+    return RefundStatus.PENDING;
+  }
+
+  private resolveRefundGateway() {
+    return getPaymentGateway();
+  }
+
+  private async createPendingGatewayPayment(input: {
+    tenantId: string;
+    branchId: string;
+    orderId: string;
+    sessionId: string;
+    amount: Decimal;
+    method: PaymentMethod;
+    paymentReference: string;
+  }) {
+    try {
+      return await this.prisma.payment.create({
+        data: {
+          tenantId: input.tenantId,
+          branchId: input.branchId,
+          orderId: input.orderId,
+          sessionId: input.sessionId,
+          amount: input.amount,
+          paymentMethod: input.method,
+          paymentStatus: PaymentStatus.PENDING,
+          paymentReference: input.paymentReference,
+        },
+      });
+    } catch (error) {
+      if (
+        (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") ||
+        (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002")
+      ) {
+        return this.prisma.payment.findFirstOrThrow({
+          where: {
+            orderId: input.orderId,
+            paymentReference: input.paymentReference,
+          },
+        });
+      }
+      throw error;
+    }
+  }
+
   // ── Split-Bill Commit ────────────────────────────────
 
   async createSplitPayments(
@@ -626,6 +805,7 @@ export class PaymentsService {
         amountMinor,
         currency: PAYMENT_CURRENCY,
         reference: `${orderId}-split-${results.length}`,
+        idempotencyKey: `${orderId}:split:${params.splitType}:${results.length}:${amountMinor}`,
         metadata: {
           scope: "ORDER_SPLIT",
           tenantId: order.tenantId,
@@ -636,27 +816,37 @@ export class PaymentsService {
         },
       });
 
-      const payment = await this.prisma.payment.create({
-        data: {
-          tenantId: order.tenantId,
-          branchId: order.branchId,
-          orderId,
-          sessionId: order.sessionId,
-          amount,
-          paymentMethod: "CARD",
-          paymentStatus: PaymentStatus.PENDING,
-          paymentReference: intentResult.externalId,
-        },
+      const payment = await this.createPendingGatewayPayment({
+        tenantId: order.tenantId,
+        branchId: order.branchId,
+        orderId,
+        sessionId: order.sessionId,
+        amount: new Decimal(amount),
+        method: PaymentMethod.CARD,
+        paymentReference: intentResult.externalId,
       });
 
-      // Create split record
-      await this.prisma.paymentSplit.create({
-        data: {
+      const splitType = params.splitType === "BY_PEOPLE"
+        ? "BY_PEOPLE"
+        : params.splitType === "BY_ITEMS"
+          ? "BY_ITEMS"
+          : "BY_AMOUNT";
+      const existingSplit = await this.prisma.paymentSplit.findFirst({
+        where: {
           paymentId: payment.id,
-          splitType: params.splitType === "BY_PEOPLE" ? "BY_PEOPLE" : params.splitType === "BY_ITEMS" ? "BY_ITEMS" : "BY_AMOUNT",
+          splitType,
           amount,
         },
       });
+      if (!existingSplit) {
+        await this.prisma.paymentSplit.create({
+          data: {
+            paymentId: payment.id,
+            splitType,
+            amount,
+          },
+        });
+      }
 
       results.push({
         paymentId: payment.id,
@@ -726,6 +916,7 @@ export class PaymentsService {
         amountMinor,
         currency: PAYMENT_CURRENCY,
         reference: orderId,
+        idempotencyKey: `order:${orderId}:${amountMinor}`,
         returnUrl,
         metadata: {
           scope: "ORDER",
@@ -743,17 +934,14 @@ export class PaymentsService {
     }
 
     // Create PENDING payment record
-    const payment = await this.prisma.payment.create({
-      data: {
-        tenantId: resolvedTenantId,
-        branchId: order.branchId,
-        orderId,
-        sessionId: order.sessionId,
-        amount: payAmount,
-        paymentMethod: method as PaymentMethod,
-        paymentStatus: PaymentStatus.PENDING,
-        paymentReference: intentResult.externalId,
-      },
+    const payment = await this.createPendingGatewayPayment({
+      tenantId: resolvedTenantId,
+      branchId: order.branchId,
+      orderId,
+      sessionId: order.sessionId,
+      amount: payAmount,
+      method: method as PaymentMethod,
+      paymentReference: intentResult.externalId,
     });
     void this.logsService.writePayment({
       tenantId: resolvedTenantId,
@@ -840,6 +1028,7 @@ export class PaymentsService {
         amountMinor,
         currency: PAYMENT_CURRENCY,
         reference: sessionId,
+        idempotencyKey: `session:${sessionId}:${amountMinor}`,
         returnUrl,
         metadata: {
           scope: "SESSION",
@@ -856,22 +1045,20 @@ export class PaymentsService {
       );
     }
 
-    const payments = await this.prisma.$transaction(
-      payableOrders.map(({ order, remaining }) =>
-        this.prisma.payment.create({
-          data: {
-            tenantId: session.tenantId,
-            branchId: session.branchId,
-            orderId: order.id,
-            sessionId,
-            amount: remaining,
-            paymentMethod: method as PaymentMethod,
-            paymentStatus: PaymentStatus.PENDING,
-            paymentReference: intentResult.externalId,
-          },
+    const payments = [];
+    for (const { order, remaining } of payableOrders) {
+      payments.push(
+        await this.createPendingGatewayPayment({
+          tenantId: session.tenantId,
+          branchId: session.branchId,
+          orderId: order.id,
+          sessionId,
+          amount: remaining,
+          method: method as PaymentMethod,
+          paymentReference: intentResult.externalId,
         }),
-      ),
-    );
+      );
+    }
     for (const payment of payments) {
       void this.logsService.writePayment({
         tenantId: session.tenantId,

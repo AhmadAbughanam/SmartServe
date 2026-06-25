@@ -4,13 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { StaffRoleCode } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service.js";
 import type { AuthenticatedStaff } from "./types/auth.types.js";
 
-const TENANT_WIDE_BRANCH_ROLES = new Set<StaffRoleCode>([
-  StaffRoleCode.OWNER,
-  StaffRoleCode.MANAGER,
+const TENANT_WIDE_BRANCH_ROLES = new Set<string>([
+  "OWNER",
+  "MANAGER",
 ]);
 
 @Injectable()
@@ -57,6 +56,9 @@ export class BranchAccessService {
     }
     if (branch.tenantId !== staff.tenantId) {
       throw new ForbiddenException("Cannot access another tenant's branch");
+    }
+    if (!branch.isActive) {
+      throw new ForbiddenException("Cannot access an inactive branch");
     }
     if (!this.canAccessAnyTenantBranch(staff) && branch.id !== staff.branchId) {
       throw new ForbiddenException("Cannot access another branch");

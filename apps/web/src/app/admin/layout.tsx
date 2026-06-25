@@ -56,6 +56,7 @@ const navRequirements: Record<string, string[]> = {
   "/admin/shifts": ["shifts:read", "attendance:write"],
   "/admin/logs": ["audit:read"],
   "/admin/devices": ["admin:read"],
+  "/admin/tables": ["tables:read"],
   "/admin/settings": ["admin:read", "settings:write"],
 };
 

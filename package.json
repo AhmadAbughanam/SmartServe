@@ -26,6 +26,7 @@
     "test:critical": "npm run test:critical --workspace @smart-restaurant/api",
     "audit:security": "node scripts/audit-check.mjs",
     "secrets:production": "node scripts/generate-production-secrets.mjs --format=env",
+    "validate:prod-env": "node scripts/validate-production-env.mjs --env-file .env.production",
     "verify:twilio": "node scripts/verify-twilio-config.mjs",
     "smoke": "node scripts/smoke-test.mjs",
     "smoke:health": "node scripts/health-check.mjs",
@@ -39,6 +40,8 @@
     "e2e:ui": "npx playwright test --ui",
     "test:all": "npm run typecheck && npm run build --workspace @smart-restaurant/web && npm run smoke && npm run e2e",
     "prisma:deploy": "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma",
+    "docker:prod:core-up": "docker compose -f docker-compose.prod.yml --env-file .env.production up -d postgres redis minio",
+    "docker:prod:bootstrap-nginx": "docker compose -f docker-compose.prod.yml --env-file .env.production up -d nginx",
     "docker:prod:build": "docker compose -f docker-compose.prod.yml --env-file .env.production build",
     "docker:prod:pull": "docker compose -f docker-compose.prod.yml --env-file .env.production pull api web ai",
     "docker:prod:up": "docker compose -f docker-compose.prod.yml --env-file .env.production up -d",
@@ -47,9 +50,19 @@
     "monitoring:up": "docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file .env.production up -d",
     "monitoring:down": "docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file .env.production down",
     "db:backup": "powershell -ExecutionPolicy Bypass -File ./scripts/backup-postgres.ps1",
-    "db:restore": "powershell -ExecutionPolicy Bypass -File ./scripts/restore-postgres.ps1"
+    "db:restore": "powershell -ExecutionPolicy Bypass -File ./scripts/restore-postgres.ps1",
+    "minio:backup": "node scripts/minio-backup.mjs",
+    "minio:restore": "node scripts/minio-restore.mjs"
+  },
+  "overrides": {
+    "multer": "2.2.0",
+    "@nestjs/platform-express": {
+      "multer": "2.2.0"
+    }
   },
   "devDependencies": {
-    "@playwright/test": "^1.59.1"
+    "@nestjs/platform-express": "file:vendor/nestjs-platform-express",
+    "@playwright/test": "^1.59.1",
+    "@types/node": "^26.0.0"
   }
 }

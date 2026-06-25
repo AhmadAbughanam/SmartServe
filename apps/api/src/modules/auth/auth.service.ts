@@ -15,9 +15,16 @@ export class AuthService {
   ) {}
 
   async staffLogin(email: string, password: string) {
-    const staff = await this.prisma.staff.findFirst({
-      where: { email, isActive: true },
+    const matchingStaff = await this.prisma.staff.findMany({
+      where: { email },
       include: {
+        branch: {
+          select: {
+            id: true,
+            isActive: true,
+            tenant: { select: { id: true, isActive: true } },
+          },
+        },
         roleAssignments: {
           include: {
             role: {
@@ -30,6 +37,15 @@ export class AuthService {
       },
     });
 
+    const eligibleStaff = matchingStaff.filter(
+      (staff) => staff.isActive && staff.branch.isActive && staff.branch.tenant.isActive,
+    );
+
+    if (eligibleStaff.length > 1) {
+      throw new UnauthorizedException("Login requires a unique active work email");
+    }
+
+    const staff = eligibleStaff[0];
     if (!staff) {
       throw new UnauthorizedException("Invalid credentials");
     }
@@ -120,6 +136,13 @@ export class AuthService {
     const staff = await this.prisma.staff.findUniqueOrThrow({
       where: { id: staffId },
       include: {
+        branch: {
+          select: {
+            id: true,
+            isActive: true,
+            tenant: { select: { id: true, isActive: true } },
+          },
+        },
         roleAssignments: {
           include: {
             role: {
@@ -131,6 +154,10 @@ export class AuthService {
         },
       },
     });
+
+    if (!staff.isActive || !staff.branch.isActive || !staff.branch.tenant.isActive) {
+      throw new UnauthorizedException("Staff account is inactive");
+    }
 
     return {
       staffId: staff.id,

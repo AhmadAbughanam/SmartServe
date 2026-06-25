@@ -41,7 +41,7 @@ export function StaffLoginForm({
         ? requiredPermissions.every((p) => res.staff.permissions.includes(p))
         : requiredPermissions.some((p) => res.staff.permissions.includes(p));
       if (!hasAccess) { setError(deniedMessage); return; }
-      setStaffToken(res.accessToken);
+      setStaffToken();
       setStaffBranchId(res.staff.branchId);
       setStaffName(res.staff.name);
       setStaffRole(res.staff.primaryRole);
@@ -87,12 +87,12 @@ export function StaffLoginForm({
               <div className="mt-8 space-y-4 max-w-[380px]">
                 <div className="relative">
                   <span className="absolute -top-[7px] left-3 px-1.5 font-mono text-[10px] font-medium" style={{ background: "var(--ink-0)", color: "var(--ink-500)" }}>Work email</span>
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder={placeholder ?? "staff@demo.com"}
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder={placeholder ?? "name@company.com"}
                     className="w-full rounded-[var(--r-md)] px-3.5 py-4 text-[15px] font-medium outline-none" style={{ border: "1px solid var(--ink-300)", color: "var(--ink-900)" }} />
                 </div>
                 <div className="relative">
                   <span className="absolute -top-[7px] left-3 px-1.5 font-mono text-[10px] font-medium" style={{ background: "var(--ink-0)", color: "var(--ink-500)" }}>Password</span>
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="password123"
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="Enter your password"
                     className="w-full rounded-[var(--r-md)] px-3.5 py-4 text-[15px] font-medium outline-none" style={{ border: "1px solid var(--ink-300)", color: "var(--ink-900)" }} />
                 </div>
               </div>
@@ -144,13 +144,13 @@ export function StaffLoginForm({
       <form onSubmit={handleLogin} className="mt-9">
         <div className="relative">
           <span className="absolute -top-[7px] left-3 px-1.5 font-mono text-[10px] font-medium" style={{ background: isDark ? "var(--ink-900)" : "var(--ink-0)", color: "var(--ink-500)" }}>Email</span>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder={placeholder ?? "staff@demo.com"}
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder={placeholder ?? "name@company.com"}
             className="w-full rounded-[var(--r-md)] px-3.5 py-4 text-[15px] font-medium outline-none"
             style={{ border: `1px solid ${isDark ? "rgba(255,255,255,0.2)" : "var(--ink-300)"}`, background: "transparent", color: isDark ? "var(--ink-0)" : "var(--ink-900)" }} />
         </div>
         <div className="relative mt-4">
           <span className="absolute -top-[7px] left-3 px-1.5 font-mono text-[10px] font-medium" style={{ background: isDark ? "var(--ink-900)" : "var(--ink-0)", color: "var(--ink-500)" }}>Password</span>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="password123"
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="Enter your password"
             className="w-full rounded-[var(--r-md)] px-3.5 py-4 text-[15px] font-medium outline-none"
             style={{ border: `1px solid ${isDark ? "rgba(255,255,255,0.2)" : "var(--ink-300)"}`, background: "transparent", color: isDark ? "var(--ink-0)" : "var(--ink-900)" }} />
         </div>

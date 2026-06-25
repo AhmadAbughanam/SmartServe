@@ -7,6 +7,7 @@ import { RealtimeService } from "../realtime/realtime.service.js";
 import type { CreateCategoryDto } from "./dto/create-category.dto.js";
 import type { CreateMenuItemDto } from "./dto/create-menu-item.dto.js";
 import type { UpdateMenuItemDto } from "./dto/update-menu-item.dto.js";
+import { normalizeMenuImageUpload } from "./image-upload.util.js";
 
 @Injectable()
 export class MenuService {
@@ -338,12 +339,13 @@ export class MenuService {
       throw new NotFoundException("Menu item not found");
     }
 
-    const key = this.buildManagedImageKey(item.id, file.originalname);
+    const normalized = await normalizeMenuImageUpload(file.buffer);
+    const key = this.buildManagedImageKey(item.id, normalized.extension);
     await this.objectStorage.putObject({
       bucket: env.s3Bucket,
       key,
-      body: file.buffer,
-      contentType: file.mimetype,
+      body: normalized.buffer,
+      contentType: normalized.contentType,
     });
 
     const imageUrl = `${this.managedImagePrefix}${key}`;
@@ -378,9 +380,8 @@ export class MenuService {
     }
   }
 
-  private buildManagedImageKey(itemId: string, originalname: string) {
-    const ext = this.safeExtension(originalname);
-    return `menu-${itemId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
+  private buildManagedImageKey(itemId: string, extension: string) {
+    return `menu-${itemId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}${extension}`;
   }
 
   private extractManagedImageKey(imageUrl?: string | null) {
@@ -388,8 +389,4 @@ export class MenuService {
     return imageUrl.slice(this.managedImagePrefix.length);
   }
 
-  private safeExtension(originalname: string) {
-    const match = originalname.toLowerCase().match(/\.(jpg|jpeg|png|webp|gif)$/);
-    return match ? `.${match[1]}` : "";
-  }
 }

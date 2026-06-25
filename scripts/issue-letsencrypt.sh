@@ -11,6 +11,9 @@ fi
 
 mkdir -p certbot/www certbot/conf nginx/ssl
 
+NGINX_CONFIG_PATH=./nginx/nginx.http.conf \
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d nginx
+
 docker run --rm \
   -v "$(pwd)/certbot/www:/var/www/certbot" \
   -v "$(pwd)/certbot/conf:/etc/letsencrypt" \
@@ -25,6 +28,7 @@ docker run --rm \
 cp "certbot/conf/live/$DOMAIN/fullchain.pem" nginx/ssl/cert.pem
 cp "certbot/conf/live/$DOMAIN/privkey.pem" nginx/ssl/key.pem
 
+docker compose -f docker-compose.prod.yml --env-file .env.production stop nginx
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d nginx
 
 echo "Issued certificate for $DOMAIN and reloaded the production Nginx container."

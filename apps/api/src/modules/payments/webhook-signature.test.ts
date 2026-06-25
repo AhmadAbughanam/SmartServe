@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
+import http from "node:http";
 import { BadRequestException } from "@nestjs/common";
+import { Module } from "@nestjs/common";
+import { NestFactory } from "@nestjs/core";
 import { StripePaymentGateway } from "./gateways/stripe.gateway.js";
 import { MockPaymentGateway } from "./gateways/mock.gateway.js";
 import { PaymentsController } from "./payments.controller.js";
+import { PaymentsService } from "./payments.service.js";
 
 function stripeSignature(payload: string, secret: string, timestamp = "1781197600") {
   const digest = crypto
@@ -98,6 +102,7 @@ async function testControllerRejectsBadSignature() {
     () => controller.handleWebhook(
       "mock",
       { body: { type: "payment.completed", externalId: "mock_1", amount: 1000, currency: "USD" } } as any,
+      undefined,
       "invalid",
     ),
     BadRequestException,
@@ -107,16 +112,116 @@ async function testControllerRejectsBadSignature() {
     () => controller.handleWebhook(
       "unknown",
       { body: "{}" } as any,
+      undefined,
       "anything",
     ),
     BadRequestException,
   );
 }
 
+async function httpRequest(input: {
+  port: number;
+  path: string;
+  method: string;
+  headers: Record<string, string>;
+  body: string;
+}) {
+  return await new Promise<{ statusCode: number; body: string }>((resolve, reject) => {
+    const req = http.request(
+      {
+        hostname: "127.0.0.1",
+        port: input.port,
+        path: input.path,
+        method: input.method,
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(input.body).toString(),
+          ...input.headers,
+        },
+      },
+      (res) => {
+        let data = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => {
+          data += chunk;
+        });
+        res.on("end", () => {
+          resolve({
+            statusCode: res.statusCode ?? 0,
+            body: data,
+          });
+        });
+      },
+    );
+    req.on("error", reject);
+    req.write(input.body);
+    req.end();
+  });
+}
+
+async function testHttpWebhookUsesRawBody() {
+  const originalSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  process.env.STRIPE_WEBHOOK_SECRET = "whsec_http_test";
+
+  @Module({
+    controllers: [PaymentsController],
+    providers: [
+      {
+        provide: PaymentsService,
+        useValue: {
+          handleWebhookEvent: async (event: unknown) => ({ ok: true, event }),
+        },
+      },
+    ],
+  })
+  class TestModule {}
+
+  const app = await NestFactory.create(TestModule, { rawBody: true, logger: false });
+  app.setGlobalPrefix("api");
+  await app.init();
+  await app.listen(0, "127.0.0.1");
+
+  try {
+    const address = app.getHttpServer().address();
+    const port = typeof address === "object" && address ? address.port : 0;
+
+    const rawPayload = '{\n  "id": "evt_http_1",\n  "type": "checkout.session.completed",\n  "data": {\n    "object": {\n      "id": "cs_http_1",\n      "payment_status": "paid",\n      "amount_total": 2500,\n      "currency": "usd",\n      "metadata": {\n        "orderId": "order-1",\n        "note": "A  B"\n      }\n    }\n  }\n}';
+    const signature = stripeSignature(rawPayload, "whsec_http_test");
+
+    const ok = await httpRequest({
+      port,
+      path: "/api/payments/webhook/stripe",
+      method: "POST",
+      headers: { "stripe-signature": signature },
+      body: rawPayload,
+    });
+    assert.equal(ok.statusCode, 201);
+
+    const mutatedPayload = JSON.stringify(JSON.parse(rawPayload));
+    assert.notEqual(mutatedPayload, rawPayload);
+    const bad = await httpRequest({
+      port,
+      path: "/api/payments/webhook/stripe",
+      method: "POST",
+      headers: { "stripe-signature": stripeSignature(mutatedPayload, "whsec_http_test") },
+      body: rawPayload,
+    });
+    assert.equal(bad.statusCode, 400);
+  } finally {
+    await app.close();
+    if (originalSecret === undefined) {
+      delete process.env.STRIPE_WEBHOOK_SECRET;
+    } else {
+      process.env.STRIPE_WEBHOOK_SECRET = originalSecret;
+    }
+  }
+}
+
 async function main() {
   await testStripeGatewaySignature();
   await testMockGatewaySignature();
   await testControllerRejectsBadSignature();
+  await testHttpWebhookUsesRawBody();
   console.log("webhook signature tests passed");
 }
 

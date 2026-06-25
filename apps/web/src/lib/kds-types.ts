@@ -30,7 +30,6 @@ export interface KitchenStation {
 }
 
 export interface StaffLoginResponse {
-  accessToken: string;
   staff: {
     id: string;
     name: string;

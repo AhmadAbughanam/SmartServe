@@ -50,7 +50,7 @@ export class CustomerAuthController {
     const result = await this.customerAuthService.verifyOtpAndLogin(dto.phone, dto.code);
     setAccessCookie(res, result.accessToken, 1 * 60 * 60 * 1000); // 1h
     setRefreshCookie(res, result.refreshToken);
-    return result;
+    return { user: result.user };
   }
 
   @Public()
@@ -71,7 +71,7 @@ export class CustomerAuthController {
     const result = await this.customerAuthService.refreshAccessToken(refreshToken);
     setAccessCookie(res, result.accessToken, 1 * 60 * 60 * 1000);
     setRefreshCookie(res, result.refreshToken);
-    return result;
+    return { user: result.user };
   }
 
   @Public()

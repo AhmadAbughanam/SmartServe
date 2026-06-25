@@ -25,8 +25,6 @@ interface OtpResponse {
 }
 
 interface VerifyResponse {
-  accessToken: string;
-  refreshToken: string;
   user: { id: string; phone: string; name: string };
 }
 
@@ -93,8 +91,8 @@ export function CustomerOtpLogin({ onBack }: CustomerOtpLoginProps) {
     setError(null);
     try {
       const res = await post<VerifyResponse>("/api/auth/customer/otp/verify", { phone: fullPhone, code: otp });
-      setCustomerToken(res.accessToken);
-      setCustomerRefresh(res.refreshToken);
+      setCustomerToken();
+      setCustomerRefresh();
       setCustomerPhone(res.user.phone);
       router.push("/customer");
     } catch (err) {

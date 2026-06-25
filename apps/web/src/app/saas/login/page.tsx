@@ -6,14 +6,13 @@ import { post } from "../../../lib/api";
 import { setSaasOwnerSession } from "../../../lib/saas-auth";
 
 interface SaasLoginResponse {
-  accessToken: string;
   user: { id: string; name: string; email: string; globalRole: "SAAS_OWNER" };
 }
 
 export default function SaasLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("saas@demo.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

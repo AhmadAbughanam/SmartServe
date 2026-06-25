@@ -5,7 +5,6 @@ import {
   OrderSource,
   OrderStatus,
   SessionStatus,
-  StaffRoleCode,
   TaxClass,
 } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service.js";
@@ -14,6 +13,13 @@ import { NotificationsService } from "../notifications/notifications.service.js"
 import { KdsService } from "../kds/kds.service.js";
 import { WaiterService } from "./waiter.service.js";
 import { OrdersService } from "../orders/orders.service.js";
+
+const StaffRoleCode = {
+  WAITER: "WAITER",
+  CHEF: "CHEF",
+} as const;
+
+type StaffRoleCode = (typeof StaffRoleCode)[keyof typeof StaffRoleCode];
 
 const prisma = new PrismaService();
 const realtime = new RealtimeService();

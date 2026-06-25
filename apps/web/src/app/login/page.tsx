@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CustomerOtpLogin } from "../../components/customer-otp-login";
 import { post } from "../../lib/api";
 import { setSaasOwnerSession } from "../../lib/saas-auth";
@@ -25,17 +25,8 @@ interface StaffDestination {
 }
 
 interface SaasLoginResponse {
-  accessToken: string;
   user: { id: string; name: string; email: string; globalRole: "SAAS_OWNER" };
 }
-
-const STAFF_ACCOUNTS = [
-  { role: "SaaS", email: "saas@demo.com", destination: "SaaS dashboard" },
-  { role: "Admin", email: "owner@demo.com", destination: "Admin dashboard" },
-  { role: "Cashier", email: "cashier@demo.com", destination: "Cashier POS" },
-  { role: "Kitchen", email: "chef@demo.com", destination: "Kitchen display" },
-  { role: "Waiter", email: "waiter@demo.com", destination: "Waiter dashboard" },
-];
 
 function resolveStaffDestination(staff: StaffLoginResponse["staff"]): StaffDestination | null {
   const permissions = new Set(staff.permissions);
@@ -68,6 +59,15 @@ export default function UnifiedLoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [routeHint, setRouteHint] = useState<string>("Admin, cashier, kitchen, and waiter accounts route automatically.");
+  const [clockText, setClockText] = useState<{ time: string; date: string } | null>(null);
+
+  useEffect(() => {
+    const now = new Date();
+    setClockText({
+      time: now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }),
+      date: now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    });
+  }, []);
 
   async function handleStaffLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -82,7 +82,7 @@ export default function UnifiedLoginPage() {
         return;
       }
 
-      setStaffToken(res.accessToken, destination.scope);
+      setStaffToken(undefined, destination.scope);
       setStaffBranchId(res.staff.branchId, destination.scope);
       setStaffName(res.staff.name, destination.scope);
       setStaffRole(res.staff.primaryRole, destination.scope);
@@ -106,14 +106,12 @@ export default function UnifiedLoginPage() {
 
   if (audience === "customer") return <CustomerOtpLogin onBack={() => setAudience("choice")} />;
 
-  const now = new Date();
-  const time = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-  const date = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-
   return (
     <main className="min-h-screen" style={{ background: "var(--ink-50)" }}>
       <nav className="flex items-center justify-between px-5 py-3 md:px-10" style={{ background: "var(--ink-0)", borderBottom: "1px solid var(--ink-200)" }}>
-        <span className="font-mono text-[11px]" style={{ color: "var(--ink-400)" }}>{time} &middot; {date}</span>
+        <span className="font-mono text-[11px]" style={{ color: "var(--ink-400)" }}>
+          {clockText ? `${clockText.time} · ${clockText.date}` : "\u2014"}
+        </span>
         <button
           type="button"
           onClick={() => {
@@ -182,7 +180,7 @@ export default function UnifiedLoginPage() {
               <h2 className="mt-2 font-serif text-[28px] font-extrabold leading-tight" style={{ color: "var(--ink-900)" }}>
                 Work <em className="font-serif italic font-medium" style={{ color: "var(--accent)" }}>login</em>
               </h2>
-              <p className="mt-1.5 text-[12px] leading-relaxed" style={{ color: "var(--ink-500)" }}>Enter any staff or SaaS demo credential. The system opens the correct workspace.</p>
+              <p className="mt-1.5 text-[12px] leading-relaxed" style={{ color: "var(--ink-500)" }}>Enter your staff or SaaS credential. The system opens the correct workspace.</p>
 
               <div className="mt-6 space-y-3.5">
                 <div>
@@ -192,7 +190,7 @@ export default function UnifiedLoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    placeholder="owner@demo.com"
+                    placeholder="name@company.com"
                     className="mt-1.5 w-full rounded-[var(--r-md)] px-3.5 py-3 text-[13px] font-medium outline-none transition"
                     style={{ border: "1px solid var(--ink-200)", color: "var(--ink-900)" }}
                   />
@@ -204,7 +202,7 @@ export default function UnifiedLoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    placeholder="password123"
+                    placeholder="Enter your password"
                     className="mt-1.5 w-full rounded-[var(--r-md)] px-3.5 py-3 text-[13px] font-medium outline-none transition"
                     style={{ border: "1px solid var(--ink-200)", color: "var(--ink-900)" }}
                   />
@@ -226,31 +224,6 @@ export default function UnifiedLoginPage() {
             </form>
           </section>
         )}
-
-        <section className="mx-auto mt-auto w-full max-w-3xl pt-8">
-          <div className="rounded-[var(--r-lg)] p-5" style={{ background: "var(--ink-0)", border: "1px solid var(--ink-200)" }}>
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="font-serif text-[15px] font-bold" style={{ color: "var(--ink-900)" }}>Test <em className="font-serif italic font-medium" style={{ color: "var(--accent)" }}>credentials</em></h2>
-              <code className="rounded px-2 py-1 font-mono text-[10px] font-semibold" style={{ background: "var(--ink-100)", color: "var(--accent)" }}>password123</code>
-            </div>
-            <div className="mt-3 grid gap-2 md:grid-cols-2">
-              {STAFF_ACCOUNTS.map((account) => (
-                <button
-                  key={account.email}
-                  type="button"
-                  onClick={() => { setAudience("staff"); setEmail(account.email); setPassword("password123"); setError(null); }}
-                  className="flex items-center gap-3 rounded-[var(--r-md)] px-3 py-2.5 text-left transition hover:opacity-90"
-                  style={{ background: "var(--ink-50)", border: "1px solid var(--ink-100)" }}
-                >
-                  <span className="rounded-[var(--r-sm)] px-2 py-0.5 font-mono text-[10px] font-bold" style={{ background: "var(--ink-900)", color: "var(--ink-0)" }}>{account.role}</span>
-                  <code className="min-w-0 flex-1 truncate font-mono text-[11px]" style={{ color: "var(--ink-600)" }}>{account.email}</code>
-                  <span className="font-mono text-[10px]" style={{ color: "var(--ink-400)" }}>{account.destination}</span>
-                </button>
-              ))}
-            </div>
-            <p className="mt-3 text-[11px]" style={{ color: "var(--ink-500)" }}>Customer login uses any phone number. In development, the OTP appears after sending.</p>
-          </div>
-        </section>
       </div>
     </main>
   );

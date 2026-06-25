@@ -422,45 +422,6 @@ export class AdminService {
     return result;
   }
 
-  // ── Tables ──────────────────────────────────────────
-
-  async createTable(tenantId: string, dto: { branchId: string; tableCode: string; capacity: number; zone?: string; locationDescription?: string; posX?: number; posY?: number; shape?: string }, staffId: string) {
-    const branch = await this.prisma.branch.findFirst({ where: { id: dto.branchId, tenantId } });
-    if (!branch) throw new BadRequestException("Branch not found");
-
-    const table = await this.prisma.table.create({
-      data: {
-        branchId: dto.branchId, tableCode: dto.tableCode, capacity: dto.capacity,
-        zone: dto.zone, locationDescription: dto.locationDescription,
-        posX: dto.posX, posY: dto.posY, shape: dto.shape as any,
-      },
-    });
-
-    await this.audit(tenantId, dto.branchId, staffId, "TABLE_CREATED", "Table", table.id, null, { tableCode: dto.tableCode, capacity: dto.capacity, zone: dto.zone });
-    return table;
-  }
-
-  async updateTable(tableId: string, tenantId: string, dto: { tableCode?: string; capacity?: number; zone?: string; locationDescription?: string; posX?: number; posY?: number; shape?: string }, staffId: string) {
-    const table = await this.prisma.table.findUnique({ where: { id: tableId }, include: { branch: { select: { tenantId: true } } } });
-    if (!table || table.branch.tenantId !== tenantId) throw new NotFoundException("Table not found");
-
-    const updated = await this.prisma.table.update({
-      where: { id: tableId },
-      data: {
-        ...(dto.tableCode !== undefined ? { tableCode: dto.tableCode } : {}),
-        ...(dto.capacity !== undefined ? { capacity: dto.capacity } : {}),
-        ...(dto.zone !== undefined ? { zone: dto.zone } : {}),
-        ...(dto.locationDescription !== undefined ? { locationDescription: dto.locationDescription } : {}),
-        ...(dto.posX !== undefined ? { posX: dto.posX } : {}),
-        ...(dto.posY !== undefined ? { posY: dto.posY } : {}),
-        ...(dto.shape !== undefined ? { shape: dto.shape as any } : {}),
-      },
-    });
-
-    await this.audit(tenantId, table.branchId, staffId, "TABLE_UPDATED", "Table", tableId, { tableCode: table.tableCode, zone: table.zone }, { tableCode: updated.tableCode, zone: updated.zone });
-    return updated;
-  }
-
   // ── Order Edit ──────────────────────────────────────
 
   async editOrder(orderId: string, tenantId: string, dto: { cancelItemIds?: string[]; reason: string }, staffId: string) {

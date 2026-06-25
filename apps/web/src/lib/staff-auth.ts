@@ -41,7 +41,7 @@ export function getStaffToken(scope: StaffAuthScope = "default"): string | null 
   return hasStaffSession(scope) ? COOKIE_AUTH_SENTINEL : null;
 }
 
-export function setStaffToken(_token: string, scope: StaffAuthScope = "default"): void {
+export function setStaffToken(_token?: string | null, scope: StaffAuthScope = "default"): void {
   localStorage.removeItem(scopedKey(TOKEN_KEY, scope));
   localStorage.setItem(scopedKey(AUTH_HINT_KEY, scope), "1");
 }

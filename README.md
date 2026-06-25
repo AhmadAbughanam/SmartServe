@@ -197,10 +197,13 @@ npm run build              # Build all workspaces
 npm run build:api          # Build backend only
 npm run build:web          # Build frontend only
 npm run secrets:production # Generate strong .env.production secret values
+npm run validate:prod-env  # Strict production env validation
 npm run smoke:health       # Lightweight API health check; no seed data required
 npm run smoke:production -- https://your-domain  # Production edge smoke check
 npm run smoke              # 16-point API smoke test
 npm run monitoring:up      # Start production stack + monitoring/log aggregation overlay
+npm run db:backup          # Backup production PostgreSQL to backups/
+npm run minio:backup       # Backup production MinIO volume to backups/
 ```
 
 ## Production Readiness
@@ -210,13 +213,24 @@ npm run monitoring:up      # Start production stack + monitoring/log aggregation
 Use this order for any VPS staging or production-style rollout:
 
 1. Prepare `.env.production` from `.env.production.example`.
-2. Run `npm run rehearsal:production`.
-3. Start the stack with `npm run docker:prod:up`.
-4. Issue or install TLS certificates.
-5. Run `npm run rehearsal:production -- https://your-domain.com` and `npm run smoke:production -- https://your-domain.com`.
-6. Run production migrations.
-7. Seed demo data only on staging/demo VPS environments.
-8. Enable monitoring with `npm run monitoring:up`.
+2. Run the release gate:
+   - `npm ci`
+   - `npm run prisma:validate`
+   - `npm run typecheck`
+   - `npm run test:critical`
+   - `npm run audit:security`
+   - `npm run build`
+3. Run `npm run validate:prod-env` (`npm run validate:prod-env -- --allow-mock` only for an intentionally mocked staging/demo rehearsal).
+4. Run `docker compose -f docker-compose.prod.yml --env-file .env.production config`.
+5. Take backups:
+   - `npm run db:backup`
+   - `npm run minio:backup`
+6. Start core services with `npm run docker:prod:core-up`.
+7. Run production migrations with `docker compose -f docker-compose.prod.yml --env-file .env.production run --rm api npx prisma migrate deploy --schema=prisma/schema.prisma`.
+8. For a first deploy with no TLS files yet, run `./scripts/bootstrap-production.sh your-domain.com ops@your-domain.com`; otherwise start the full stack with `npm run docker:prod:up`.
+9. Run `npm run rehearsal:production -- https://your-domain.com` and `npm run smoke:production -- https://your-domain.com`.
+10. Seed demo data only on staging/demo VPS environments.
+11. Enable monitoring with `npm run monitoring:up` only when access stays private behind localhost, SSH tunnel, VPN, or an authenticated reverse proxy.
 
 ### VPS Environment Policy
 
@@ -238,6 +252,8 @@ Use this order for any VPS staging or production-style rollout:
 | `STRIPE_WEBHOOK_SECRET` | If Stripe | Stripe webhook signing secret (whsec_...) |
 | `SMS_PROVIDER` | Yes in production | `twilio` for production OTP delivery; `noop` only for local development |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` | If Twilio | Customer OTP SMS delivery credentials |
+| `DEPLOY_DOMAIN` | Yes | Bare public domain, for example `your-domain.com` |
+| `LETSENCRYPT_EMAIL` | Yes | ACME/Let's Encrypt contact email |
 
 See `.env.production.example` for full production template.
 
@@ -255,6 +271,12 @@ Validate Twilio credentials before rollout:
 npm run verify:twilio -- --env-file .env.production
 ```
 
+Validate the full production env file before VPS rehearsal:
+
+```bash
+npm run validate:prod-env
+```
+
 ### Before Production Checklist
 
 - [ ] Generate strong `JWT_SECRET`: `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`
@@ -266,6 +288,11 @@ npm run verify:twilio -- --env-file .env.production
 - [x] Integrate SMS provider adapter for OTP
 - [ ] Configure production SMS credentials
 - [ ] Configure Stripe live keys (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`)
+- [ ] Set `DEPLOY_DOMAIN` and `LETSENCRYPT_EMAIL`
+- [ ] Run `npm run validate:prod-env`
+- [ ] Run `docker compose -f docker-compose.prod.yml --env-file .env.production config`
+- [ ] Take `npm run db:backup`
+- [ ] Take `npm run minio:backup`
 - [x] Migrate browser auth tokens to httpOnly cookies
 - [x] Add CSP/security headers at the public edge
 - [x] Add request IDs, request logging, and optional monitoring/log aggregation overlay
@@ -387,9 +414,20 @@ For a VPS that should deploy published images instead of building on-host:
 3. Run `npm run docker:prod:up`.
 4. Run migrations and the production smoke gates as usual.
 
+Before rollout, record the current `API_IMAGE`, `WEB_IMAGE`, and `AI_IMAGE` tags or digests so a rollback can reset the stack to the last known-good release.
+
 `npm run smoke:health` checks the running API health endpoint without seed data. `npm run smoke` requires a running API with migrated and seeded database.
 
 Before a real VPS rollout, run `npm run rehearsal:production` to catch placeholder secrets, missing TLS files, broken production compose config, and edge-security regressions before exposing the stack publicly.
+
+Rollback order:
+
+1. Record the current `API_IMAGE`, `WEB_IMAGE`, and `AI_IMAGE` before deployment.
+2. Take `npm run db:backup` and `npm run minio:backup`.
+3. Prefer forward-fix migrations unless data integrity is broken.
+4. If application code must roll back, restore the previous image values and run `npm run docker:prod:up`.
+5. Restore PostgreSQL only when data integrity requires it.
+6. Restore MinIO only when object-storage integrity requires it.
 
 Use demo seed data only for local development or a staging/demo VPS. Do not seed a real production database because the seed creates known demo accounts such as `owner@demo.com` and `saas@demo.com`.
 

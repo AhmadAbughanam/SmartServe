@@ -3,6 +3,8 @@ import type {
   PaymentGateway,
   PaymentIntentInput,
   PaymentIntentResult,
+  RefundInput,
+  RefundResult,
   WebhookEvent,
 } from "../../../contracts/payment-gateway.js";
 
@@ -14,7 +16,8 @@ export class MockPaymentGateway implements PaymentGateway {
   readonly name = "mock";
 
   async createIntent(input: PaymentIntentInput): Promise<PaymentIntentResult> {
-    const externalId = `mock_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+    const idSource = input.idempotencyKey ?? input.reference;
+    const externalId = `mock_${crypto.createHash("sha256").update(idSource).digest("hex").slice(0, 16)}`;
     const baseUrl = input.returnUrl
       ? new URL(input.returnUrl).origin
       : "http://localhost:3000";
@@ -24,6 +27,16 @@ export class MockPaymentGateway implements PaymentGateway {
       externalId,
       checkoutUrl: `${baseUrl}/customer/payment/success?ref=${externalId}&amount=${input.amountMinor}&currency=${input.currency}`,
       status: "pending",
+    };
+  }
+
+  async refund(input: RefundInput): Promise<RefundResult> {
+    return {
+      provider: "mock",
+      externalId: `mock_refund_${crypto.createHash("sha256").update(input.idempotencyKey ?? `${input.paymentReference}:${input.amountMinor}`).digest("hex").slice(0, 16)}`,
+      status: "completed",
+      providerStatus: "succeeded",
+      failureReason: input.amountMinor <= 0 ? "invalid_amount" : undefined,
     };
   }
 

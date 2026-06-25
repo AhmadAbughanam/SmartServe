@@ -16,9 +16,7 @@ import { CreateTaxRuleDto, UpdateTaxRuleDto } from "./dto/tax-rule.dto.js";
 import { CreateExpenseDto } from "./dto/expense.dto.js";
 import {
   AdminEditOrderDto,
-  CreateAdminTableDto,
   ResolveLowStockAlertDto,
-  UpdateAdminTableDto,
 } from "./dto/operations.dto.js";
 import { UpdateBranchSettingsDto } from "../branch-settings/dto/branch-settings.dto.js";
 import { CurrentStaff } from "../auth/decorators/current-staff.decorator.js";
@@ -254,28 +252,6 @@ export class AdminController {
   ) {
     const effectiveBranchId = await this.branchAccess.resolveBranchId(staff, branchId);
     return this.adminService.updateBranchSettings(effectiveBranchId, staff.tenantId, body, staff.staffId);
-  }
-
-  // ── Tables ──────────────────────────────────────────
-
-  @Post("tables")
-  @RequirePermissions("admin:write")
-  async createTable(
-    @Body() body: CreateAdminTableDto,
-    @CurrentStaff() staff: AuthenticatedStaff,
-  ) {
-    await this.branchAccess.assertUserCanAccessBranch(staff, body.branchId);
-    return this.adminService.createTable(staff.tenantId, body, staff.staffId);
-  }
-
-  @Patch("tables/:tableId")
-  @RequirePermissions("admin:write")
-  updateTable(
-    @Param("tableId") tableId: string,
-    @Body() body: UpdateAdminTableDto,
-    @CurrentStaff() staff: AuthenticatedStaff,
-  ) {
-    return this.adminService.updateTable(tableId, staff.tenantId, body, staff.staffId);
   }
 
   // ── Order Edit ──────────────────────────────────────

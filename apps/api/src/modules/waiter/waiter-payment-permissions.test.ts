@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
-import { StaffRoleCode } from "@prisma/client";
 import { PERMISSIONS_KEY } from "../auth/decorators/require-permissions.decorator.js";
 import { WaiterController } from "./waiter.controller.js";
+
+const StaffRoleCode = {
+  WAITER: "WAITER",
+} as const;
 
 const cashPermissions = Reflect.getMetadata(
   PERMISSIONS_KEY,

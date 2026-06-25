@@ -46,8 +46,7 @@ export class AuthController {
   ) {
     const result = await this.authService.staffLogin(dto.email, dto.password);
     setAccessCookie(res, result.accessToken, env.staffAccessCookieMaxAgeMs);
-    // Return JSON body for bearer-token compatibility
-    return result;
+    return { staff: result.staff };
   }
 
   @Public()
@@ -61,7 +60,7 @@ export class AuthController {
   ) {
     const result = await this.authService.saasOwnerLogin(dto.email, dto.password);
     setAccessCookie(res, result.accessToken, env.staffAccessCookieMaxAgeMs);
-    return result;
+    return { user: result.user };
   }
 
   @Public()

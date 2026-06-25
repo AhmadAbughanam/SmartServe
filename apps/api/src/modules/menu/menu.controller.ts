@@ -65,6 +65,8 @@ export class MenuController {
     const image = await this.menuService.getManagedMenuImage(imageKey);
     res.setHeader("Content-Type", image.contentType ?? "application/octet-stream");
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.setHeader("Content-Disposition", 'inline; filename="menu-image"');
+    res.setHeader("X-Content-Type-Options", "nosniff");
     return new StreamableFile(image.body);
   }
 
@@ -133,13 +135,6 @@ export class MenuController {
     FileInterceptor("image", {
       storage: memoryStorage(),
       limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
-      fileFilter: (_req, file, cb) => {
-        if (!file.mimetype.startsWith("image/")) {
-          cb(new BadRequestException("Only image files are allowed"), false);
-        } else {
-          cb(null, true);
-        }
-      },
     }),
   )
   async uploadImage(

@@ -164,8 +164,8 @@ export default function TenantsAdminContent({ initialTab }: { initialTab: Tenant
     name: "",
     email: "",
     phone: "",
-    password: "password123",
-    confirmPassword: "password123",
+    password: "",
+    confirmPassword: "",
   });
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -932,8 +932,8 @@ export default function TenantsAdminContent({ initialTab }: { initialTab: Tenant
                         name: "",
                         email: "",
                         phone: "",
-                        password: "password123",
-                        confirmPassword: "password123",
+                        password: "",
+                        confirmPassword: "",
                       });
                       toast("Owner created");
                     });

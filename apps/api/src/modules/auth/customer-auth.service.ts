@@ -207,6 +207,10 @@ export class CustomerAuthService {
       where: { id: userId },
     });
 
+    if (user.isBlocked) {
+      throw new UnauthorizedException("Account is blocked");
+    }
+
     return {
       userId: user.id,
       phone: user.phone,

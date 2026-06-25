@@ -23,9 +23,11 @@
     "test:security-hardening": "tsx src/modules/security/security-hardening.test.ts",
     "test:otp-sms": "tsx src/modules/auth/otp-sms.service.test.ts",
     "test:branch-access": "tsx src/modules/auth/branch-access.service.test.ts",
+    "test:session-concurrency": "tsx src/modules/sessions/sessions.concurrency.test.ts",
     "test:public-order": "tsx src/modules/orders/public-order-creation.service.test.ts",
     "test:payment-safety": "tsx src/modules/payments/payment-safety.service.test.ts",
     "test:webhook-signature": "tsx src/modules/payments/webhook-signature.test.ts",
+    "test:menu-upload-validation": "tsx src/modules/menu/image-upload.util.test.ts",
     "test:inventory-transactions": "tsx src/modules/inventory/inventory-transactions.service.test.ts",
     "test:dto-validation": "tsx src/modules/validation/dto-validation.test.ts",
     "test:critical": "npm run test:branch-access && npm run test:public-order && npm run test:payment-safety && npm run test:webhook-signature && npm run test:inventory-transactions && npm run test:dto-validation && npm run test:ai-output-validation && npm run test:business-insights && npm run test:demand-forecast && npm run test:waiter-order-assignment && npm run test:waiter-payment-permissions && npm run test:geofencing && npm run test:security-hardening && npm run test:otp-sms",
@@ -37,10 +39,10 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1075.0",
-    "@nestjs/common": "^11.0.1",
-    "@nestjs/core": "^11.0.1",
+    "@nestjs/common": "^11.1.27",
+    "@nestjs/core": "^11.1.27",
     "@nestjs/jwt": "^11.0.2",
-    "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/platform-express": "file:../../vendor/nestjs-platform-express",
     "@nestjs/schedule": "^6.1.3",
     "@nestjs/serve-static": "^5.0.5",
     "@nestjs/throttler": "^6.5.0",
@@ -53,17 +55,24 @@
     "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.5",
     "helmet": "^8.1.0",
-    "multer": "^2.1.1",
+    "multer": "^2.2.0",
     "prom-client": "^15.1.3",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/node": "^22.9.0",
     "prisma": "^6.0.1",
-    "tsx": "^4.19.2",
+    "tsx": "^4.22.4",
     "typescript": "^5.6.3"
+  },
+  "overrides": {
+    "multer": "2.2.0",
+    "@nestjs/platform-express": {
+      "multer": "2.2.0"
+    }
   }
 }

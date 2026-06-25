@@ -1,5 +1,6 @@
 import "dotenv/config";
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import { BadRequestException, ConflictException, ForbiddenException } from "@nestjs/common";
 import {
   OrderPaymentStatus,
@@ -8,14 +9,17 @@ import {
   PaymentMethod,
   PaymentStatus,
   SessionStatus,
-  StaffRoleCode,
   TableStatus,
 } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service.js";
 import { RealtimeService } from "../realtime/realtime.service.js";
 import { BranchAccessService } from "../auth/branch-access.service.js";
 import { PaymentsService } from "./payments.service.js";
-import type { PaymentGateway, PaymentIntentInput } from "../../contracts/payment-gateway.js";
+import type { PaymentGateway, PaymentIntentInput, RefundInput, RefundResult } from "../../contracts/payment-gateway.js";
+
+const StaffRoleCode = {
+  CASHIER: "CASHIER",
+} as const;
 
 const prisma = new PrismaService();
 const realtime = new RealtimeService();
@@ -45,6 +49,8 @@ const ids = {
   paidOrder: `${runId}-paid-order`,
   cancelledOrder: `${runId}-cancelled-order`,
   otherBranchOrder: `${runId}-other-branch-order`,
+  refundFailOrder: `${runId}-refund-fail-order`,
+  refundFailedGatewayOrder: `${runId}-refund-failed-gateway-order`,
 };
 
 const branchStaff = {
@@ -58,17 +64,28 @@ const branchStaff = {
 class CaptureGateway implements PaymentGateway {
   readonly name = "capture";
   calls: PaymentIntentInput[] = [];
-  private counter = 0;
+  refundCalls: RefundInput[] = [];
+  refundResult: RefundResult = {
+    provider: "capture",
+    externalId: `${runId}-refund-1`,
+    status: "completed",
+    providerStatus: "succeeded",
+  };
 
   async createIntent(input: PaymentIntentInput) {
     this.calls.push(input);
-    this.counter += 1;
+    const externalId = `${runId}-intent-${crypto.createHash("sha256").update(input.idempotencyKey ?? input.reference).digest("hex").slice(0, 12)}`;
     return {
       provider: this.name,
-      externalId: `${runId}-intent-${this.counter}`,
-      checkoutUrl: `https://pay.test/${this.counter}`,
+      externalId,
+      checkoutUrl: `https://pay.test/${externalId}`,
       status: "pending" as const,
     };
+  }
+
+  async refund(input: RefundInput) {
+    this.refundCalls.push(input);
+    return this.refundResult;
   }
 
   verifyWebhookSignature() {
@@ -146,6 +163,8 @@ async function seed() {
   await createOrder(ids.paidOrder, ids.branch, ids.session, OrderStatus.SERVED, OrderPaymentStatus.PAID, 20);
   await createOrder(ids.cancelledOrder, ids.branch, ids.session, OrderStatus.CANCELLED, OrderPaymentStatus.UNPAID, 30);
   await createOrder(ids.otherBranchOrder, ids.otherBranch, ids.otherSession, OrderStatus.SERVED, OrderPaymentStatus.UNPAID, 40);
+  await createOrder(ids.refundFailOrder, ids.branch, ids.session, OrderStatus.SERVED, OrderPaymentStatus.UNPAID, 25);
+  await createOrder(ids.refundFailedGatewayOrder, ids.branch, ids.session, OrderStatus.SERVED, OrderPaymentStatus.UNPAID, 35);
 
   await prisma.payment.create({
     data: {
@@ -219,8 +238,20 @@ async function main() {
     "",
     gateway,
   );
+  const duplicateIntent = await service.createPaymentIntent(
+    ids.partialOrder,
+    PaymentMethod.CARD,
+    undefined,
+    "",
+    gateway,
+  );
   assert.equal(gateway.calls[0]?.amountMinor, 5000, "intent must use remaining DB amount, not client amount");
   assert.equal(intent.amount, "50");
+  assert.equal(duplicateIntent.externalId, intent.externalId);
+  const duplicateIntentPayments = await prisma.payment.findMany({
+    where: { orderId: ids.partialOrder, paymentReference: intent.externalId },
+  });
+  assert.equal(duplicateIntentPayments.length, 1);
 
   await rejectsAs(
     () => service.createPaymentIntent(ids.paidOrder, PaymentMethod.CARD, undefined, "", gateway),
@@ -303,6 +334,72 @@ async function main() {
     }, { ...branchStaff, permissions: ["payments:read", "payments:write", "payments:refund"] } as any),
     ConflictException,
   );
+
+  const gatewayRefundPayment = await service.createPaymentIntent(
+    ids.refundFailOrder,
+    PaymentMethod.CARD,
+    undefined,
+    "",
+    gateway,
+  );
+  await service.handleWebhookEvent({
+    type: "payment.completed",
+    externalId: gatewayRefundPayment.externalId,
+    amount: 2500,
+    currency: "USD",
+  });
+
+  gateway.refundResult = {
+    provider: "capture",
+    externalId: `${runId}-refund-success`,
+    status: "completed",
+    providerStatus: "succeeded",
+  };
+  const providerRefund = await service.createRefund(
+    gatewayRefundPayment.paymentId,
+    { amount: 5, reason: "partial compensation" },
+    { ...branchStaff, permissions: ["payments:read", "payments:write", "payments:refund"] } as any,
+    gateway,
+  );
+  assert.equal(providerRefund.status, "COMPLETED");
+  assert.equal(providerRefund.providerRefundId, `${runId}-refund-success`);
+  assert.equal(providerRefund.providerStatus, "succeeded");
+  assert.equal(gateway.refundCalls.at(-1)?.paymentReference, gatewayRefundPayment.externalId);
+  const providerRefundedOrder = await prisma.order.findUniqueOrThrow({ where: { id: ids.refundFailOrder } });
+  assert.equal(providerRefundedOrder.paymentStatus, OrderPaymentStatus.PARTIALLY_PAID);
+
+  const failedGateway = new CaptureGateway();
+  const failedIntent = await service.createPaymentIntent(
+    ids.refundFailedGatewayOrder,
+    PaymentMethod.CARD,
+    undefined,
+    "",
+    failedGateway,
+  );
+  await service.handleWebhookEvent({
+    type: "payment.completed",
+    externalId: failedIntent.externalId,
+    amount: 3500,
+    currency: "USD",
+  });
+  failedGateway.refundResult = {
+    provider: "capture",
+    externalId: `${runId}-refund-failed`,
+    status: "failed",
+    providerStatus: "failed",
+    failureReason: "card_declined",
+  };
+  const failedRefund = await service.createRefund(
+    failedIntent.paymentId,
+    { amount: 10, reason: "declined refund" },
+    { ...branchStaff, permissions: ["payments:read", "payments:write", "payments:refund"] } as any,
+    failedGateway,
+  );
+  assert.equal(failedRefund.status, "FAILED");
+  assert.equal(failedRefund.providerRefundId, `${runId}-refund-failed`);
+  assert.equal(failedRefund.providerStatus, "failed");
+  const failedRefundOrder = await prisma.order.findUniqueOrThrow({ where: { id: ids.refundFailedGatewayOrder } });
+  assert.equal(failedRefundOrder.paymentStatus, OrderPaymentStatus.PAID);
 
   console.log("Payment safety tests passed");
 }

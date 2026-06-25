@@ -19,7 +19,7 @@ function base64url(bytes) {
 }
 
 function password(length = 32) {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*_-+=";
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#%^&*_-+=";
   const bytes = randomBytes(length);
   let value = "";
   for (let i = 0; i < length; i += 1) {

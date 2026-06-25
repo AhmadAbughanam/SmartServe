@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { SessionStatus, TableStatus } from "@prisma/client";
+import { Prisma, SessionStatus, TableStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service.js";
 import { SESSION_STARTABLE_STATUSES } from "../tables/table-status.rules.js";
 import { GeoFencingService } from "../geofencing/geofencing.service.js";
@@ -81,30 +81,40 @@ export class SessionsService {
       });
     }
 
-    // Create session and move table to OCCUPIED in a transaction
-    const [session] = await this.prisma.$transaction([
-      this.prisma.session.create({
-        data: {
-          tenantId: table.branch.tenantId,
-          branchId: input.branchId,
-          tableId: table.id,
-          guestCount: input.guestCount,
-          notes: input.notes,
-          userId: input.userId,
-          createdByStaffId: input.createdByStaffId,
-        },
-        include: {
-          table: { select: { id: true, tableCode: true, status: true } },
-        },
-      }),
-      this.prisma.table.update({
-        where: { id: table.id },
-        data: {
-          status: TableStatus.OCCUPIED,
-          lastOccupiedTime: new Date(),
-        },
-      }),
-    ]);
+    let session;
+    try {
+      [session] = await this.prisma.$transaction([
+        this.prisma.session.create({
+          data: {
+            tenantId: table.branch.tenantId,
+            branchId: input.branchId,
+            tableId: table.id,
+            guestCount: input.guestCount,
+            notes: input.notes,
+            userId: input.userId,
+            createdByStaffId: input.createdByStaffId,
+          },
+          include: {
+            table: { select: { id: true, tableCode: true, status: true } },
+          },
+        }),
+        this.prisma.table.update({
+          where: { id: table.id },
+          data: {
+            status: TableStatus.OCCUPIED,
+            lastOccupiedTime: new Date(),
+          },
+        }),
+      ]);
+    } catch (error) {
+      if (
+        (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") ||
+        (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002")
+      ) {
+        throw new ConflictException("An active session already exists on this table");
+      }
+      throw error;
+    }
 
     // Update lastSessionId outside the main transaction (non-critical)
     await this.prisma.table.update({
