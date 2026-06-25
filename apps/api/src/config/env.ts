@@ -109,7 +109,7 @@ const redisUrl = requireUrl("REDIS_URL", process.env.REDIS_URL);
 const aiServiceUrl = optionalUrl("AI_SERVICE_URL", process.env.AI_SERVICE_URL, "http://localhost:8000");
 const hfBaseUrl = optionalUrl("HF_BASE_URL", process.env.HF_BASE_URL, "https://router.huggingface.co/v1");
 const s3Endpoint = optionalUrl("S3_ENDPOINT", process.env.S3_ENDPOINT, "http://localhost:9000");
-const frontendOrigin = optionalUrl("FRONTEND_ORIGIN", process.env.FRONTEND_ORIGIN, "http://localhost:3000");
+const frontendOrigin = optionalUrl("FRONTEND_ORIGIN", process.env.FRONTEND_ORIGIN, "https://xzotechx.com");
 const paymentProvider = requireOneOf("PAYMENT_PROVIDER", process.env.PAYMENT_PROVIDER, ["mock", "stripe"] as const, "mock");
 const cookieSameSite = requireOneOf("COOKIE_SAME_SITE", process.env.COOKIE_SAME_SITE, ["lax", "strict", "none"] as const, "lax");
 const smsProvider = requireOneOf("SMS_PROVIDER", process.env.SMS_PROVIDER, ["noop", "twilio"] as const, isDev ? "noop" : "twilio");
@@ -160,7 +160,7 @@ if (isProd && smsProvider === "noop") {
 const corsOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean)
   : isDev
-    ? ["http://localhost:3000", "http://localhost:4000"]
+    ? ["https://xzotechx.com", "https://www.xzotechx.com"]
     : [];
 
 for (const origin of corsOrigins) {
