@@ -39,6 +39,10 @@ This file is the rolling project memory. Claude or any coding agent working in t
 - This keeps the container build aligned with the repo `packageManager` contract and avoids Next.js falling into the image's old global Yarn 1.x path during `next build`.
 - Added `NEXT_IGNORE_INCORRECT_LOCKFILE=1` to the web build stage because Next.js was falsely trying to patch the npm workspace lockfile for SWC packages that are already present, and that patch path was what triggered the Yarn/Corepack failure in CI.
 
+### 2026-06-25 — VPS Deploy Workflow Uses Prisma Deploy
+
+- Updated the VPS deployment workflow to run `npm run prisma:deploy` instead of `npm run prisma:migrate`, because the previous script called `prisma migrate dev`, which is interactive and fails in GitHub Actions/SSH deployment shells.
+
 ### 2026-06-20 — SaaS Notifications Surface Removed
 
 - Removed the SaaS `Notifications` page and the related sidebar section because the notifications surface is no longer part of the desired SaaS navigation.

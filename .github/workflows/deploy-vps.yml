@@ -43,7 +43,7 @@ jobs:
             npm run prisma:generate
 
             echo "== Run database migrations =="
-            npm run prisma:migrate
+            npm run prisma:deploy
 
             echo "== Build project =="
             npm run build
