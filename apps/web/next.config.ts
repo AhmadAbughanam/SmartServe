@@ -18,6 +18,11 @@ const nextConfig: NextConfig = {
     config.cache = { type: "memory" as const };
     return config;
   },
+  allowedDevOrigins: [
+    'xzotechx.com',
+    'www.xzotechx.com',
+    'localhost:3000',
+  ]
 };
 
 export default nextConfig;

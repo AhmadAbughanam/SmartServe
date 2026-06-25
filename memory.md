@@ -28,6 +28,17 @@ This file is the rolling project memory. Claude or any coding agent working in t
 
 ## Change Log
 
+### 2026-06-25 — Login Hydration Mismatch Fix
+
+- Fixed the unified `/login` page clock so it no longer formats `new Date()` during SSR, which was causing hydration mismatches between VPS-rendered HTML and the browser's local timezone.
+- The login nav now renders a stable placeholder first and fills in the localized time/date only after client mount.
+
+### 2026-06-25 — Web Image Build Toolchain Fix
+
+- Updated `apps/web/Dockerfile` from Node 20 Alpine to Node 22 Alpine across all stages and enabled Corepack-managed `npm@11.6.4` in the dependency and build stages.
+- This keeps the container build aligned with the repo `packageManager` contract and avoids Next.js falling into the image's old global Yarn 1.x path during `next build`.
+- Added `NEXT_IGNORE_INCORRECT_LOCKFILE=1` to the web build stage because Next.js was falsely trying to patch the npm workspace lockfile for SWC packages that are already present, and that patch path was what triggered the Yarn/Corepack failure in CI.
+
 ### 2026-06-20 — SaaS Notifications Surface Removed
 
 - Removed the SaaS `Notifications` page and the related sidebar section because the notifications surface is no longer part of the desired SaaS navigation.

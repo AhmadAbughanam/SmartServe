@@ -1,0 +1,77 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy SmartServe to VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/vps_key
+          chmod 600 ~/.ssh/vps_key
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy on VPS
+        run: |
+          ssh -i ~/.ssh/vps_key "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" << 'EOF'
+            set -e
+
+            cd "${{ secrets.VPS_PROJECT_PATH }}"
+
+            echo "== Pull latest code =="
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "== Install dependencies =="
+            npm ci || npm install
+
+            echo "== Generate Prisma =="
+            npm run prisma:generate
+
+            echo "== Run database migrations =="
+            npm run prisma:migrate
+
+            echo "== Build project =="
+            npm run build
+
+            echo "== Install/update Python AI dependencies =="
+            if [ -f "apps/ai-services/requirements.txt" ]; then
+              python3 -m venv .venv
+              . .venv/bin/activate
+              python -m pip install --upgrade pip
+              pip install -r apps/ai-services/requirements.txt
+            fi
+
+            echo "== Restart PM2 services =="
+            pm2 restart smart-api || pm2 start npm --name smart-api -- run dev:api
+            pm2 restart smart-web || pm2 start npm --name smart-web -- run dev:web
+            pm2 restart smart-ai || pm2 start bash --name smart-ai -- -lc 'cd /root/apps/SmartServe/apps/ai-services && source /root/apps/SmartServe/.venv/bin/activate && exec uvicorn app.main:app --host 127.0.0.1 --port 8000'
+
+            echo "== Save PM2 process list =="
+            pm2 save
+
+            echo "== Test local services =="
+            sleep 5
+            curl -f http://127.0.0.1:4000/api/health
+            curl -f http://127.0.0.1:8000/health
+            curl -I http://127.0.0.1:3000
+
+            echo "== Test public API =="
+            curl -f https://xzotechx.com/api/health
+
+            echo "== Deployment complete =="
+          EOF

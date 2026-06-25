@@ -1,7 +1,9 @@
 # ── Stage 1: Install dependencies ────────────────────
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 
 WORKDIR /app
+
+RUN corepack enable && corepack prepare npm@11.6.4 --activate
 
 # Copy workspace root manifests
 COPY package.json package-lock.json ./
@@ -13,9 +15,11 @@ COPY packages/shared-types/package.json packages/shared-types/
 RUN npm ci
 
 # ── Stage 2: Build ───────────────────────────────────
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 
 WORKDIR /app
+
+RUN corepack enable && corepack prepare npm@11.6.4 --activate
 
 # Copy hoisted node_modules from deps stage
 COPY --from=deps /app/node_modules ./node_modules
@@ -27,14 +31,17 @@ COPY packages/shared-types/ packages/shared-types/
 
 # NEXT_PUBLIC_ vars must be set at build time (baked into client bundle).
 # In production behind Nginx, use empty string so API calls are same-origin.
+# Next.js lockfile patching is unreliable in this npm-workspaces repo even though the
+# required SWC packages are already present in package-lock.json.
 ARG NEXT_PUBLIC_API_BASE_URL=""
 ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+ENV NEXT_IGNORE_INCORRECT_LOCKFILE=1
 
 # Build Next.js (produces .next/standalone for Docker)
 RUN npm run build --workspace=@smart-restaurant/web
 
 # ── Stage 3: Production runtime ──────────────────────
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 
 WORKDIR /app
 
