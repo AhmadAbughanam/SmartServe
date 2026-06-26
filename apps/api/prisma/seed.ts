@@ -199,7 +199,7 @@ function getLogicalStatuses(orderTime: Date) {
 
   if (ageMinutes > 18) {
     return {
-      orderStatus: "PREPARING",
+      orderStatus: "IN_KITCHEN",
       paymentStatus: "UNPAID",
       kitchenStatus: "IN_PROGRESS",
       sessionStatus: "ACTIVE",
@@ -207,9 +207,9 @@ function getLogicalStatuses(orderTime: Date) {
   }
 
   return {
-    orderStatus: "PENDING",
+    orderStatus: "PLACED",
     paymentStatus: "UNPAID",
-    kitchenStatus: "QUEUED",
+    kitchenStatus: "PENDING",
     sessionStatus: "ACTIVE",
   };
 }
@@ -217,8 +217,8 @@ function getLogicalStatuses(orderTime: Date) {
 function chooseOrderSource() {
   return weightedRandom([
     { item: "USER_APP", weight: 44 },
-    { item: "WAITER_APP", weight: 36 },
-    { item: "POS", weight: 20 },
+    { item: "WAITER_QUICK_ADD", weight: 36 },
+    { item: "POS_DASHBOARD", weight: 20 },
   ]);
 }
 
