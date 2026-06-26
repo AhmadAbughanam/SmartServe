@@ -4,9 +4,476 @@ import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
 
+
+type WeightedEntry<T> = {
+  item: T;
+  weight: number;
+};
+
+type BasketLine = {
+  item: any;
+  quantity: number;
+};
+
+function randomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function randomFrom<T>(items: T[]): T {
+  if (!items.length) throw new Error("randomFrom received an empty array.");
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function weightedRandom<T>(items: WeightedEntry<T>[]): T {
+  if (!items.length) throw new Error("weightedRandom received an empty array.");
+
+  const totalWeight = items.reduce((sum, entry) => sum + entry.weight, 0);
+  let cursor = Math.random() * totalWeight;
+
+  for (const entry of items) {
+    cursor -= entry.weight;
+    if (cursor <= 0) return entry.item;
+  }
+
+  return items[items.length - 1].item;
+}
+
+function roundMoney(value: number): number {
+  return Number(value.toFixed(2));
+}
+
+function minutesAfter(date: Date, minutes: number): Date {
+  return new Date(date.getTime() + minutes * 60 * 1000);
+}
+
+function makeDateDaysAgoAt(daysBack: number, hour: number): Date {
+  const date = new Date();
+  date.setDate(date.getDate() - daysBack);
+  date.setHours(hour, randomInt(0, 59), randomInt(0, 59), 0);
+  return date;
+}
+
+function getOrdersForHour(hour: number, dayOfWeek: number): number {
+  const isWeekend = dayOfWeek === 5 || dayOfWeek === 6; // Friday / Saturday in Jordan restaurant rhythm
+  let baseMin = 0;
+  let baseMax = 0;
+
+  if (hour >= 8 && hour <= 11) {
+    baseMin = 0;
+    baseMax = 1;
+  } else if (hour >= 12 && hour <= 15) {
+    baseMin = 2;
+    baseMax = 4;
+  } else if (hour >= 16 && hour <= 18) {
+    baseMin = 0;
+    baseMax = 2;
+  } else if (hour >= 19 && hour <= 23) {
+    baseMin = 3;
+    baseMax = 6;
+  }
+
+  const base = randomInt(baseMin, baseMax);
+  return isWeekend ? Math.round(base * 1.45) : base;
+}
+
+function findMenuItem(menuItems: any[], name: string) {
+  const item = menuItems.find((entry) => entry.name === name);
+  if (!item) throw new Error(`Missing seeded menu item: ${name}`);
+  return item;
+}
+
+function buildLogicalBasket(menuItems: any[]): BasketLine[] {
+  const main = weightedRandom([
+    { item: findMenuItem(menuItems, "Classic Burger"), weight: 28 },
+    { item: findMenuItem(menuItems, "Double Cheese Burger"), weight: 16 },
+    { item: findMenuItem(menuItems, "Chicken Burger"), weight: 14 },
+    { item: findMenuItem(menuItems, "Spaghetti Carbonara"), weight: 16 },
+    { item: findMenuItem(menuItems, "Alfredo Pasta"), weight: 12 },
+    { item: findMenuItem(menuItems, "Grilled Chicken Meal"), weight: 14 },
+  ]);
+
+  const basket: BasketLine[] = [{ item: main, quantity: 1 }];
+
+  // Starters: common with main meals, but not guaranteed.
+  if (Math.random() < 0.28) {
+    basket.push({
+      item: weightedRandom([
+        { item: findMenuItem(menuItems, "Bruschetta"), weight: 30 },
+        { item: findMenuItem(menuItems, "French Fries"), weight: 45 },
+        { item: findMenuItem(menuItems, "Chicken Wings"), weight: 25 },
+      ]),
+      quantity: 1,
+    });
+  }
+
+  // Drinks: high attach rate, especially for burgers and chicken.
+  const drinkAttachRate = main.name.includes("Burger") || main.name.includes("Chicken") ? 0.82 : 0.68;
+  if (Math.random() < drinkAttachRate) {
+    basket.push({
+      item: weightedRandom([
+        { item: findMenuItem(menuItems, "Cola"), weight: 48 },
+        { item: findMenuItem(menuItems, "Fresh Orange Juice"), weight: 24 },
+        { item: findMenuItem(menuItems, "Iced Tea"), weight: 18 },
+        { item: findMenuItem(menuItems, "Water"), weight: 10 },
+      ]),
+      quantity: randomInt(1, 2),
+    });
+  }
+
+  // Dessert: more likely after dinner-sized meals.
+  if (Math.random() < 0.18) {
+    basket.push({
+      item: weightedRandom([
+        { item: findMenuItem(menuItems, "Cheesecake"), weight: 55 },
+        { item: findMenuItem(menuItems, "Chocolate Cake"), weight: 45 },
+      ]),
+      quantity: 1,
+    });
+  }
+
+  return basket;
+}
+
+function calculateTotals(basket: BasketLine[]) {
+  const subtotal = basket.reduce(
+    (sum, line) => sum + Number(line.item.price) * line.quantity,
+    0,
+  );
+
+  const tax = basket.reduce((sum, line) => {
+    const taxRate = line.item.taxClass === "BEVERAGE" ? 0.1 : 0.05;
+    return sum + Number(line.item.price) * line.quantity * taxRate;
+  }, 0);
+
+  const discount = Math.random() < 0.08 ? subtotal * 0.1 : 0;
+  const serviceCharge = 0;
+
+  return {
+    subtotalAmount: roundMoney(subtotal),
+    taxAmount: roundMoney(tax),
+    serviceChargeAmount: roundMoney(serviceCharge),
+    discountAmount: roundMoney(discount),
+    totalAmount: roundMoney(subtotal + tax + serviceCharge - discount),
+  };
+}
+
+function getLogicalStatuses(orderTime: Date) {
+  const ageMinutes = (Date.now() - orderTime.getTime()) / 1000 / 60;
+
+  // Tiny cancellation rate, mostly for non-historic noise.
+  if (Math.random() < 0.025 && ageMinutes > 120) {
+    return {
+      orderStatus: "CANCELLED",
+      paymentStatus: "UNPAID",
+      kitchenStatus: "CANCELLED",
+      sessionStatus: "CANCELLED",
+    };
+  }
+
+  if (ageMinutes > 240) {
+    return {
+      orderStatus: "COMPLETED",
+      paymentStatus: "PAID",
+      kitchenStatus: "READY",
+      sessionStatus: "COMPLETED",
+    };
+  }
+
+  if (ageMinutes > 75) {
+    return {
+      orderStatus: "SERVED",
+      paymentStatus: "UNPAID",
+      kitchenStatus: "READY",
+      sessionStatus: "ACTIVE",
+    };
+  }
+
+  if (ageMinutes > 45) {
+    return {
+      orderStatus: "READY",
+      paymentStatus: "UNPAID",
+      kitchenStatus: "READY",
+      sessionStatus: "ACTIVE",
+    };
+  }
+
+  if (ageMinutes > 18) {
+    return {
+      orderStatus: "PREPARING",
+      paymentStatus: "UNPAID",
+      kitchenStatus: "IN_PROGRESS",
+      sessionStatus: "ACTIVE",
+    };
+  }
+
+  return {
+    orderStatus: "PENDING",
+    paymentStatus: "UNPAID",
+    kitchenStatus: "QUEUED",
+    sessionStatus: "ACTIVE",
+  };
+}
+
+function chooseOrderSource() {
+  return weightedRandom([
+    { item: "USER_APP", weight: 44 },
+    { item: "WAITER_APP", weight: 36 },
+    { item: "POS", weight: 20 },
+  ]);
+}
+
+function choosePaymentMethod() {
+  return weightedRandom([
+    { item: "CARD", weight: 64 },
+    { item: "CASH", weight: 31 },
+    { item: "WALLET", weight: 5 },
+  ]);
+}
+
+function reviewProfileForBasket(basket: BasketLine[], orderTime: Date) {
+  const hour = orderTime.getHours();
+  const hasPasta = basket.some((line) => line.item.name.includes("Pasta") || line.item.name.includes("Carbonara"));
+  const isDinnerRush = hour >= 19 && hour <= 22;
+
+  let negativePressure = 0;
+  if (hasPasta) negativePressure += 0.1; // pasta cools faster; useful for sentiment story
+  if (isDinnerRush) negativePressure += 0.08; // late complaints rise in rush hour
+
+  const rating = weightedRandom([
+    { item: 5, weight: 42 - negativePressure * 50 },
+    { item: 4, weight: 31 },
+    { item: 3, weight: 16 + negativePressure * 25 },
+    { item: 2, weight: 8 + negativePressure * 20 },
+    { item: 1, weight: 3 + negativePressure * 5 },
+  ]);
+
+  const issueTags =
+    rating >= 4
+      ? []
+      : weightedRandom([
+          { item: ["LATE"], weight: isDinnerRush ? 48 : 32 },
+          { item: ["COLD"], weight: hasPasta ? 44 : 28 },
+          { item: ["WRONG_ITEM"], weight: 14 },
+          { item: ["LATE", "COLD"], weight: 18 },
+        ]);
+
+  return { rating, issueTags };
+}
+
+async function maybeCreateReview(params: {
+  tenantId: string;
+  branchId: string;
+  orderId: string;
+  basket: BasketLine[];
+  orderTime: Date;
+}) {
+  const { tenantId, branchId, orderId, basket, orderTime } = params;
+
+  // Only some completed customers review; enough for sentiment analytics, not unrealistically all orders.
+  if (Math.random() > 0.34) return;
+
+  const { rating, issueTags } = reviewProfileForBasket(basket, orderTime);
+
+  await prisma.review.create({
+    data: {
+      tenantId,
+      branchId,
+      orderId,
+      overallRating: rating,
+      comment:
+        rating >= 4
+          ? "Great experience, fresh food, and smooth service."
+          : "The experience could be improved, especially around speed and food temperature.",
+      createdAt: minutesAfter(orderTime, randomInt(45, 24 * 60)),
+      issueTags: {
+        create: issueTags.map((tag) => ({ tag })),
+      },
+      itemReviews: {
+        create: basket.map((line) => ({
+          menuItemId: line.item.id,
+          rating: Math.max(1, Math.min(5, rating + randomInt(-1, 1))),
+          comment: rating >= 4 ? "Good item." : "Needs improvement.",
+        })),
+      },
+    },
+  });
+}
+
+async function seedLogicalAnalyticsData(params: {
+  tenantId: string;
+  branchId: string;
+  days: number;
+}) {
+  const { tenantId, branchId, days } = params;
+  console.log(`  Seeding logical analytics simulator for ${days} days...`);
+
+  const tables = (await prisma.table.findMany({ where: { branchId } })) as any[];
+  const menuItems = (await prisma.menuItem.findMany({ where: { tenantId } })) as any[];
+
+  if (!tables.length) throw new Error("Cannot seed analytics without tables.");
+  if (menuItems.length < 10) throw new Error("Cannot seed analytics without a richer menu.");
+
+  let createdOrders = 0;
+  let createdReviews = 0;
+
+  for (let daysBack = days - 1; daysBack >= 0; daysBack--) {
+    for (let hour = 8; hour <= 23; hour++) {
+      const sampleTime = makeDateDaysAgoAt(daysBack, hour);
+      const orderCount = getOrdersForHour(hour, sampleTime.getDay());
+
+      for (let i = 0; i < orderCount; i++) {
+        const orderTime = makeDateDaysAgoAt(daysBack, hour);
+        const basket = buildLogicalBasket(menuItems);
+        const totals = calculateTotals(basket);
+        const statuses = getLogicalStatuses(orderTime);
+        const table = randomFrom(tables);
+
+        const session = await prisma.session.create({
+          data: {
+            tenantId,
+            branchId,
+            tableId: table.id,
+            status: statuses.sessionStatus as any,
+            guestCount: Math.max(1, Math.min(8, basket.length + randomInt(0, 3))),
+            startTime: orderTime,
+            endTime:
+              statuses.sessionStatus === "COMPLETED"
+                ? minutesAfter(orderTime, randomInt(35, 95))
+                : null,
+          },
+        });
+
+        const order = await prisma.order.create({
+          data: {
+            tenantId,
+            branchId,
+            sessionId: session.id,
+            orderDateTime: orderTime,
+            orderStatus: statuses.orderStatus as any,
+            paymentStatus: statuses.paymentStatus as any,
+            source: chooseOrderSource() as any,
+            subtotalAmount: totals.subtotalAmount,
+            taxAmount: totals.taxAmount,
+            serviceChargeAmount: totals.serviceChargeAmount,
+            discountAmount: totals.discountAmount,
+            totalAmount: totals.totalAmount,
+            orderItems: {
+              create: basket.map((line) => {
+                const taxRate = line.item.taxClass === "BEVERAGE" ? 0.1 : 0.05;
+                const base = Number(line.item.price) * line.quantity;
+                const lineTax = base * taxRate;
+                return {
+                  tenantId,
+                  branchId,
+                  menuItemId: line.item.id,
+                  quantity: line.quantity,
+                  itemBasePrice: line.item.price,
+                  lineDiscountAmount: 0,
+                  lineTaxAmount: roundMoney(lineTax),
+                  lineTotal: roundMoney(base + lineTax),
+                  kitchenStatus: statuses.kitchenStatus as any,
+                };
+              }),
+            },
+            statusHistory: {
+              create: {
+                tenantId,
+                branchId,
+                toStatus: statuses.orderStatus as any,
+                changedAt: orderTime,
+              },
+            },
+            payments:
+              statuses.paymentStatus === "PAID"
+                ? {
+                    create: {
+                      tenantId,
+                      branchId,
+                      sessionId: session.id,
+                      amount: totals.totalAmount,
+                      paymentMethod: choosePaymentMethod() as any,
+                      paymentStatus: "COMPLETED" as any,
+                      paymentDate: minutesAfter(orderTime, randomInt(28, 100)),
+                      payerType: "CUSTOMER" as any,
+                    },
+                  }
+                : undefined,
+          },
+        });
+
+        createdOrders++;
+
+        const reviewsBefore = await prisma.review.count({ where: { orderId: order.id } });
+        if (statuses.orderStatus === "COMPLETED") {
+          await maybeCreateReview({ tenantId, branchId, orderId: order.id, basket, orderTime });
+        }
+        const reviewsAfter = await prisma.review.count({ where: { orderId: order.id } });
+        createdReviews += reviewsAfter - reviewsBefore;
+      }
+    }
+  }
+
+  // Final inventory snapshot tells a clear analytics story: top sellers are low, slow movers are healthy.
+  await prisma.inventoryItem.updateMany({
+    where: { branchId, name: { in: ["Beef Patty", "Burger Buns", "Cola Cans"] } },
+    data: { currentStock: 8 },
+  });
+  await prisma.inventoryItem.updateMany({
+    where: { branchId, name: { in: ["Spaghetti Pasta"] } },
+    data: { currentStock: 4 },
+  });
+
+  console.log(`  Logical orders created: ${createdOrders}`);
+  console.log(`  Logical reviews created: ${createdReviews}`);
+}
+
+async function clearDemoSeedData() {
+  console.log("Clearing old demo seed data...");
+
+  const cleanupSteps = [
+    () => prisma.itemReview.deleteMany(),
+    () => prisma.reviewIssueTag.deleteMany(),
+    () => prisma.review.deleteMany(),
+
+    () => prisma.payment.deleteMany(),
+    () => prisma.orderStatusHistory.deleteMany(),
+    () => prisma.orderItem.deleteMany(),
+    () => prisma.order.deleteMany(),
+
+    () => prisma.session.deleteMany(),
+
+    () => prisma.tableAccessTag.deleteMany(),
+    () => prisma.branchDevice.deleteMany(),
+    () => prisma.branchSettings.deleteMany(),
+
+    () => prisma.menuItemInventoryMap.deleteMany(),
+    () => prisma.inventoryItem.deleteMany(),
+    () => prisma.menuItemAddition.deleteMany(),
+    () => prisma.menuItem.deleteMany(),
+    () => prisma.category.deleteMany(),
+
+    () => prisma.taxRule.deleteMany(),
+    () => prisma.table.deleteMany(),
+
+    () => prisma.staffRoleAssignment.deleteMany(),
+    () => prisma.staff.deleteMany(),
+    () => prisma.rolePermission.deleteMany(),
+    () => prisma.role.deleteMany(),
+
+    () => prisma.branch.deleteMany(),
+    () => prisma.tenant.deleteMany(),
+  ];
+
+  for (const step of cleanupSteps) {
+    await step().catch(() => undefined);
+  }
+
+  console.log("Old demo seed data cleared.");
+}
+
 async function main() {
   console.log("Seeding database...");
-
+  await clearDemoSeedData();
   // 1. Tenant
   const tenant = await prisma.tenant.upsert({
     where: { id: "seed-tenant-1" },
@@ -378,11 +845,14 @@ async function main() {
 
   // 7. Tables
   const tableDefs = [
-    { code: "T1", capacity: 4, zone: "Main", location: undefined as string | undefined },
-    { code: "T2", capacity: 2, zone: "Main", location: undefined as string | undefined },
-    { code: "T3", capacity: 6, zone: "Main", location: undefined as string | undefined },
-    { code: "T4", capacity: 4, zone: "Patio", location: "Patio" },
-    { code: "T5", capacity: 8, zone: "Private", location: "Private room" },
+    ...Array.from({ length: 12 }, (_, i) => ({
+      code: `T${i + 1}`,
+      capacity: i % 5 === 0 ? 6 : i % 3 === 0 ? 2 : 4,
+      zone: i <= 6 ? "Main" : "Patio",
+      location: i <= 6 ? undefined as string | undefined : "Patio",
+    })),
+    { code: "VIP1", capacity: 8, zone: "Private", location: "Private room" },
+    { code: "VIP2", capacity: 10, zone: "Private", location: "Private room" },
   ];
 
   for (const t of tableDefs) {
@@ -390,7 +860,7 @@ async function main() {
       where: {
         branchId_tableCode: { branchId: branch.id, tableCode: t.code },
       },
-      update: { zone: t.zone },
+      update: { zone: t.zone, capacity: t.capacity, locationDescription: t.location },
       create: {
         branchId: branch.id,
         tableCode: t.code,
@@ -457,7 +927,18 @@ async function main() {
       displayOrder: 3,
     },
   });
-  console.log("  Categories: 3");
+
+  const catDesserts = await prisma.category.upsert({
+    where: { id: "seed-cat-desserts" },
+    update: {},
+    create: {
+      id: "seed-cat-desserts",
+      tenantId: tenant.id,
+      name: "Desserts",
+      displayOrder: 4,
+    },
+  });
+  console.log("  Categories: 4");
 
   // 10. Menu items with additions
   const itemBruschetta = await prisma.menuItem.upsert({
@@ -534,7 +1015,44 @@ async function main() {
       taxClass: "BEVERAGE",
     },
   });
-  console.log("  Menu items: 5");
+
+  const extraMenuSeeds = [
+    { id: "seed-item-fries", categoryId: catStarters.id, name: "French Fries", description: "Crispy golden fries", price: 4.0, prepTimeMinutes: 8, taxClass: "FOOD" as const },
+    { id: "seed-item-wings", categoryId: catStarters.id, name: "Chicken Wings", description: "Spicy glazed chicken wings", price: 7.5, prepTimeMinutes: 14, taxClass: "FOOD" as const },
+    { id: "seed-item-double-burger", categoryId: catMains.id, name: "Double Cheese Burger", description: "Double beef patty with cheddar cheese", price: 17.0, prepTimeMinutes: 18, taxClass: "FOOD" as const },
+    { id: "seed-item-chicken-burger", categoryId: catMains.id, name: "Chicken Burger", description: "Crispy chicken burger with garlic sauce", price: 12.5, prepTimeMinutes: 14, taxClass: "FOOD" as const },
+    { id: "seed-item-alfredo", categoryId: catMains.id, name: "Alfredo Pasta", description: "Creamy alfredo pasta with parmesan", price: 13.0, prepTimeMinutes: 13, taxClass: "FOOD" as const },
+    { id: "seed-item-grilled-chicken", categoryId: catMains.id, name: "Grilled Chicken Meal", description: "Grilled chicken with rice and vegetables", price: 15.5, prepTimeMinutes: 20, taxClass: "FOOD" as const },
+    { id: "seed-item-iced-tea", categoryId: catDrinks.id, name: "Iced Tea", description: "Cold lemon iced tea", price: 3.5, prepTimeMinutes: 3, taxClass: "BEVERAGE" as const },
+    { id: "seed-item-water", categoryId: catDrinks.id, name: "Water", description: "Still bottled water", price: 1.25, prepTimeMinutes: 1, taxClass: "BEVERAGE" as const },
+    { id: "seed-item-cheesecake", categoryId: catDesserts.id, name: "Cheesecake", description: "Classic vanilla cheesecake", price: 5.5, prepTimeMinutes: 5, taxClass: "FOOD" as const },
+    { id: "seed-item-chocolate-cake", categoryId: catDesserts.id, name: "Chocolate Cake", description: "Rich chocolate layer cake", price: 5.0, prepTimeMinutes: 5, taxClass: "FOOD" as const },
+  ];
+
+  for (const item of extraMenuSeeds) {
+    await prisma.menuItem.upsert({
+      where: { id: item.id },
+      update: {
+        categoryId: item.categoryId,
+        name: item.name,
+        description: item.description,
+        price: item.price,
+        prepTimeMinutes: item.prepTimeMinutes,
+        taxClass: item.taxClass,
+      },
+      create: {
+        id: item.id,
+        tenantId: tenant.id,
+        categoryId: item.categoryId,
+        name: item.name,
+        description: item.description,
+        price: item.price,
+        prepTimeMinutes: item.prepTimeMinutes,
+        taxClass: item.taxClass,
+      },
+    });
+  }
+  console.log("  Menu items:", 5 + extraMenuSeeds.length);
 
   // 11. Additions / modifiers
   const additionDefs = [
@@ -714,201 +1232,15 @@ async function main() {
   }
   console.log("  Table access tags:", tables.length);
 
-  // 17. Review sentiment demo data
-  const reviewOrderIds = [
-    "seed-review-order-prev-1",
-    "seed-review-order-prev-2",
-    "seed-review-order-1",
-    "seed-review-order-2",
-    "seed-review-order-3",
-    "seed-review-order-4",
-    "seed-review-order-5",
-  ];
-  await prisma.review.deleteMany({ where: { orderId: { in: reviewOrderIds } } });
-  await prisma.payment.deleteMany({ where: { orderId: { in: reviewOrderIds } } });
-  await prisma.orderStatusHistory.deleteMany({ where: { orderId: { in: reviewOrderIds } } });
-  await prisma.orderItem.deleteMany({ where: { orderId: { in: reviewOrderIds } } });
-  await prisma.order.deleteMany({ where: { id: { in: reviewOrderIds } } });
-
-  const reviewTable = tables.find((t) => t.tableCode === "T3") ?? tables[0];
-  if (reviewTable) {
-    const reviewSession = await prisma.session.upsert({
-      where: { id: "seed-review-session-1" },
-      update: {
-        tenantId: tenant.id,
-        branchId: branch.id,
-        tableId: reviewTable.id,
-        status: "COMPLETED",
-        guestCount: 2,
-        endTime: new Date("2026-05-04T21:00:00.000Z"),
-      },
-      create: {
-        id: "seed-review-session-1",
-        tenantId: tenant.id,
-        branchId: branch.id,
-        tableId: reviewTable.id,
-        status: "COMPLETED",
-        guestCount: 2,
-        startTime: new Date("2026-05-01T18:00:00.000Z"),
-        endTime: new Date("2026-05-04T21:00:00.000Z"),
-      },
-    });
-
-    const reviewSeeds = [
-      {
-        orderId: "seed-review-order-prev-1",
-        createdAt: "2026-04-24T18:30:00.000Z",
-        rating: 2,
-        issueTags: ["COLD"] as string[],
-        items: [
-          { item: itemPasta, rating: 2 },
-          { item: itemCola, rating: 4 },
-        ],
-      },
-      {
-        orderId: "seed-review-order-prev-2",
-        createdAt: "2026-04-25T19:10:00.000Z",
-        rating: 3,
-        issueTags: ["COLD"] as string[],
-        items: [
-          { item: itemBurger, rating: 3 },
-          { item: itemJuice, rating: 4 },
-        ],
-      },
-      {
-        orderId: "seed-review-order-1",
-        createdAt: "2026-05-01T18:30:00.000Z",
-        rating: 5,
-        issueTags: [] as string[],
-        items: [
-          { item: itemBurger, rating: 5 },
-          { item: itemJuice, rating: 5 },
-        ],
-      },
-      {
-        orderId: "seed-review-order-2",
-        createdAt: "2026-05-02T19:10:00.000Z",
-        rating: 4,
-        issueTags: ["LATE"],
-        items: [
-          { item: itemBurger, rating: 3 },
-          { item: itemCola, rating: 4 },
-        ],
-      },
-      {
-        orderId: "seed-review-order-3",
-        createdAt: "2026-05-03T20:05:00.000Z",
-        rating: 3,
-        issueTags: ["LATE", "COLD"],
-        items: [
-          { item: itemPasta, rating: 2 },
-          { item: itemCola, rating: 4 },
-        ],
-      },
-      {
-        orderId: "seed-review-order-4",
-        createdAt: "2026-05-04T13:20:00.000Z",
-        rating: 2,
-        issueTags: ["LATE", "WRONG_ITEM"],
-        items: [
-          { item: itemBurger, rating: 2 },
-          { item: itemPasta, rating: 3 },
-        ],
-      },
-      {
-        orderId: "seed-review-order-5",
-        createdAt: "2026-05-04T20:45:00.000Z",
-        rating: 4,
-        issueTags: ["COLD"],
-        items: [
-          { item: itemPasta, rating: 3 },
-          { item: itemJuice, rating: 5 },
-        ],
-      },
-    ];
-
-    for (const seedReview of reviewSeeds) {
-      const subtotal = seedReview.items.reduce((sum, entry) => sum + Number(entry.item.price), 0);
-      const tax = seedReview.items.reduce(
-        (sum, entry) => sum + Number(entry.item.price) * (entry.item.taxClass === "BEVERAGE" ? 0.1 : 0.05),
-        0,
-      );
-      const total = subtotal + tax;
-
-      await prisma.order.create({
-        data: {
-          id: seedReview.orderId,
-          tenantId: tenant.id,
-          branchId: branch.id,
-          sessionId: reviewSession.id,
-          orderDateTime: new Date(seedReview.createdAt),
-          orderStatus: "COMPLETED",
-          paymentStatus: "PAID",
-          source: "USER_APP",
-          subtotalAmount: subtotal,
-          taxAmount: tax,
-          serviceChargeAmount: 0,
-          discountAmount: 0,
-          totalAmount: total,
-          orderItems: {
-            create: seedReview.items.map((entry) => ({
-              tenantId: tenant.id,
-              branchId: branch.id,
-              menuItemId: entry.item.id,
-              quantity: 1,
-              itemBasePrice: entry.item.price,
-              lineDiscountAmount: 0,
-              lineTaxAmount: Number(entry.item.price) * (entry.item.taxClass === "BEVERAGE" ? 0.1 : 0.05),
-              lineTotal: Number(entry.item.price) * (entry.item.taxClass === "BEVERAGE" ? 1.1 : 1.05),
-              kitchenStatus: "READY",
-            })),
-          },
-          statusHistory: {
-            create: {
-              tenantId: tenant.id,
-              branchId: branch.id,
-              toStatus: "COMPLETED",
-              changedAt: new Date(seedReview.createdAt),
-            },
-          },
-          payments: {
-            create: {
-              tenantId: tenant.id,
-              branchId: branch.id,
-              sessionId: reviewSession.id,
-              amount: total,
-              paymentMethod: "CARD",
-              paymentStatus: "COMPLETED",
-              paymentDate: new Date(seedReview.createdAt),
-              payerType: "CUSTOMER",
-            },
-          },
-        },
-      });
-
-      await prisma.review.create({
-        data: {
-          tenantId: tenant.id,
-          branchId: branch.id,
-          orderId: seedReview.orderId,
-          overallRating: seedReview.rating,
-          comment: "Seed review comment hidden from sentiment UI",
-          createdAt: new Date(seedReview.createdAt),
-          issueTags: {
-            create: seedReview.issueTags.map((tag) => ({ tag })),
-          },
-          itemReviews: {
-            create: seedReview.items.map((entry) => ({
-              menuItemId: entry.item.id,
-              rating: entry.rating,
-              comment: "Seed item review comment hidden from sentiment UI",
-            })),
-          },
-        },
-      });
-    }
-  }
-  console.log("  Review sentiment demo reviews:", reviewOrderIds.length);
+  // 17. Logical analytics simulator data
+  // This replaces static random rows with business-aware behavior:
+  // lunch/dinner peaks, weekend lift, weighted item popularity, realistic baskets,
+  // calculated taxes/totals, payments, KDS statuses, reviews, and inventory pressure.
+  await seedLogicalAnalyticsData({
+    tenantId: tenant.id,
+    branchId: branch.id,
+    days: 30,
+  });
 
   console.log("Seed complete.");
 }
