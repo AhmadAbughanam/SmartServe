@@ -309,6 +309,7 @@ async function seedLogicalAnalyticsData(params: {
 
   const tables = (await prisma.table.findMany({ where: { branchId } })) as any[];
   const menuItems = (await prisma.menuItem.findMany({ where: { tenantId } })) as any[];
+  const activeTableIds = new Set<string>();
 
   if (!tables.length) throw new Error("Cannot seed analytics without tables.");
   if (menuItems.length < 10) throw new Error("Cannot seed analytics without a richer menu.");
@@ -325,19 +326,52 @@ async function seedLogicalAnalyticsData(params: {
         const orderTime = makeDateDaysAgoAt(daysBack, hour);
         const basket = buildLogicalBasket(menuItems);
         const totals = calculateTotals(basket);
+        let table = randomFrom(tables);
         const statuses = getLogicalStatuses(orderTime);
-        const table = randomFrom(tables);
+
+        const shouldBeActive = statuses.sessionStatus === "ACTIVE";
+        const finalSessionStatus =
+          shouldBeActive && !activeTableIds.has(table.id)
+            ? "ACTIVE"
+            : statuses.sessionStatus === "CANCELLED"
+              ? "CANCELLED"
+              : "COMPLETED";
+
+        if (finalSessionStatus === "ACTIVE") {
+          activeTableIds.add(table.id);
+        }
+
+        const finalOrderStatus =
+          finalSessionStatus === "COMPLETED"
+            ? "COMPLETED"
+            : finalSessionStatus === "CANCELLED"
+              ? "CANCELLED"
+              : statuses.orderStatus;
+
+        const finalPaymentStatus =
+          finalSessionStatus === "COMPLETED"
+            ? "PAID"
+            : finalSessionStatus === "CANCELLED"
+              ? "UNPAID"
+              : statuses.paymentStatus;
+
+        const finalKitchenStatus =
+          finalSessionStatus === "COMPLETED"
+            ? "READY"
+            : finalSessionStatus === "CANCELLED"
+              ? "CANCELLED"
+              : statuses.kitchenStatus;
 
         const session = await prisma.session.create({
           data: {
             tenantId,
             branchId,
             tableId: table.id,
-            status: statuses.sessionStatus as any,
-            guestCount: Math.max(1, Math.min(8, basket.length + randomInt(0, 3))),
+            status: finalSessionStatus as any,
+            guestCount: Math.max(1, Math.min(table.capacity ?? 4, basket.length + randomInt(0, 3))),
             startTime: orderTime,
             endTime:
-              statuses.sessionStatus === "COMPLETED"
+              finalSessionStatus !== "ACTIVE"
                 ? minutesAfter(orderTime, randomInt(35, 95))
                 : null,
           },
@@ -349,8 +383,8 @@ async function seedLogicalAnalyticsData(params: {
             branchId,
             sessionId: session.id,
             orderDateTime: orderTime,
-            orderStatus: statuses.orderStatus as any,
-            paymentStatus: statuses.paymentStatus as any,
+            orderStatus: finalOrderStatus as any,
+            paymentStatus: finalPaymentStatus as any,
             source: chooseOrderSource() as any,
             subtotalAmount: totals.subtotalAmount,
             taxAmount: totals.taxAmount,
@@ -371,7 +405,7 @@ async function seedLogicalAnalyticsData(params: {
                   lineDiscountAmount: 0,
                   lineTaxAmount: roundMoney(lineTax),
                   lineTotal: roundMoney(base + lineTax),
-                  kitchenStatus: statuses.kitchenStatus as any,
+                  kitchenStatus: finalKitchenStatus as any,
                 };
               }),
             },
@@ -379,12 +413,12 @@ async function seedLogicalAnalyticsData(params: {
               create: {
                 tenantId,
                 branchId,
-                toStatus: statuses.orderStatus as any,
+                toStatus: finalOrderStatus as any,
                 changedAt: orderTime,
               },
             },
             payments:
-              statuses.paymentStatus === "PAID"
+              finalPaymentStatus === "PAID"
                 ? {
                     create: {
                       tenantId,
@@ -404,7 +438,7 @@ async function seedLogicalAnalyticsData(params: {
         createdOrders++;
 
         const reviewsBefore = await prisma.review.count({ where: { orderId: order.id } });
-        if (statuses.orderStatus === "COMPLETED") {
+        if (finalOrderStatus === "COMPLETED") {
           await maybeCreateReview({ tenantId, branchId, orderId: order.id, basket, orderTime });
         }
         const reviewsAfter = await prisma.review.count({ where: { orderId: order.id } });
