@@ -52,6 +52,11 @@ This file is the rolling project memory. Claude or any coding agent working in t
 - Updated backend table-availability reads so customer table-access and waiter floor/workspace flows derive occupancy from the presence of an `ACTIVE` session instead of trusting stale `Table.status` or `lastSessionId` alone.
 - Updated analytics/demo seeding to reconcile each table after synthetic session creation so seeded `Table.status`, `lastSessionId`, and `lastOccupiedTime` stay aligned with the sessions stored in the database.
 
+### 2026-06-27 — Review AI Endpoint And Recommendation DTO Alignment
+
+- Added the missing FastAPI `POST /review-sentiment/summarize` route so the NestJS review-sentiment analyzer no longer calls a nonexistent AI endpoint.
+- Updated the recommendations request DTO to accept optional `surface` and `trigger` fields, matching the shared contract and frontend payload so strict Nest validation no longer rejects valid recommendation requests with `400`.
+
 ### 2026-06-20 — SaaS Notifications Surface Removed
 
 - Removed the SaaS `Notifications` page and the related sidebar section because the notifications surface is no longer part of the desired SaaS navigation.

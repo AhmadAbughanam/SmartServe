@@ -2,6 +2,7 @@ import { Type } from "class-transformer";
 import {
   IsArray,
   IsInt,
+  IsIn,
   IsOptional,
   IsString,
   Max,
@@ -22,6 +23,19 @@ class CartItemDto {
 export class MenuRecommendationRequestDto
   implements MenuRecommendationRequest
 {
+  private static readonly surfaces = [
+    "menu_home",
+    "cart",
+    "item_detail",
+    "checkout",
+  ] as const;
+
+  private static readonly triggers = [
+    "empty_cart",
+    "cart_aware",
+    "no_history_fallback",
+  ] as const;
+
   @IsOptional()
   @IsString()
   tenantId?: string;
@@ -47,4 +61,14 @@ export class MenuRecommendationRequestDto
   @Min(1)
   @Max(20)
   limit?: number;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(MenuRecommendationRequestDto.surfaces)
+  surface?: MenuRecommendationRequest["surface"];
+
+  @IsOptional()
+  @IsString()
+  @IsIn(MenuRecommendationRequestDto.triggers)
+  trigger?: MenuRecommendationRequest["trigger"];
 }

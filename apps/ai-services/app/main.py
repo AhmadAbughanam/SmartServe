@@ -74,6 +74,102 @@ class BusinessInsightsSummarizeResponse(BaseModel):
     summary: str
 
 
+class ReviewCommonIssue(BaseModel):
+    issue: str
+    count: int
+    severity: str
+
+
+class ReviewAffectedItem(BaseModel):
+    menuItemId: str
+    name: str
+    averageRating: float
+    issueCount: int
+    topIssue: Optional[str] = None
+
+
+class ReviewSentimentTrendInput(BaseModel):
+    previousFrom: str
+    previousTo: str
+    previousTotalReviews: int
+    previousAverageRating: float
+    averageRatingDelta: float
+    reviewCountDelta: int
+    currentTopIssue: Optional[str] = None
+    previousTopIssue: Optional[str] = None
+    topIssueChanged: bool
+    direction: str
+
+
+class ReviewSentimentAlertInput(BaseModel):
+    type: str
+    severity: str
+    message: str
+    issue: Optional[str] = None
+    currentCount: Optional[int] = None
+    previousCount: Optional[int] = None
+    countDelta: Optional[int] = None
+    ratingDelta: Optional[float] = None
+
+
+class ReviewTimelinePointInput(BaseModel):
+    from_: str = Field(alias="from")
+    to: str
+    reviewCount: int
+    averageRating: float
+    issueCount: int
+    topIssue: Optional[str] = None
+
+
+class ReviewItemComplaintTimelineInput(BaseModel):
+    menuItemId: str
+    name: str
+    totalIssueCount: int
+    direction: str
+    points: list[ReviewTimelinePointInput]
+
+
+class ReviewOperationalCorrelationsInput(BaseModel):
+    reviewedOrderCount: int
+    lateIssueReviewCount: int
+    averageKitchenMinutes: Optional[float] = None
+    lateReviewsAverageKitchenMinutes: Optional[float] = None
+    averageReadyToServedMinutes: Optional[float] = None
+    lateReviewsAverageReadyToServedMinutes: Optional[float] = None
+    serviceRequestCount: int
+    lateReviewsServiceRequestCount: int
+    signal: str
+    summary: str
+
+
+class ReviewActionSuggestionInput(BaseModel):
+    id: str
+    title: str
+    action: str
+    reason: str
+    severity: str
+    relatedIssue: Optional[str] = None
+    menuItemId: Optional[str] = None
+    menuItemName: Optional[str] = None
+
+
+class ReviewSentimentSummarizeRequest(BaseModel):
+    totalReviews: int
+    averageRating: float
+    sentiment: str
+    commonIssues: list[ReviewCommonIssue] = Field(default_factory=list)
+    affectedItems: list[ReviewAffectedItem] = Field(default_factory=list)
+    trend: ReviewSentimentTrendInput
+    alerts: list[ReviewSentimentAlertInput] = Field(default_factory=list)
+    itemTimelines: list[ReviewItemComplaintTimelineInput] = Field(default_factory=list)
+    operationalCorrelations: ReviewOperationalCorrelationsInput
+    actionSuggestions: list[ReviewActionSuggestionInput] = Field(default_factory=list)
+
+
+class ReviewSentimentSummarizeResponse(BaseModel):
+    summary: str
+
+
 @app.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
     return HealthResponse(
@@ -257,6 +353,75 @@ async def summarize_business_insights(
 
     # 4. Graceful fallback if the LLM boundary fails
     return BusinessInsightsSummarizeResponse(summary=fallback_summary)
+
+
+@app.post("/review-sentiment/summarize", response_model=ReviewSentimentSummarizeResponse)
+async def summarize_review_sentiment(
+    req: ReviewSentimentSummarizeRequest,
+) -> ReviewSentimentSummarizeResponse:
+    common_issues = [issue.issue for issue in req.commonIssues[:2]]
+    affected_items = [item.name for item in req.affectedItems[:2]]
+    top_alert = req.alerts[0].message if req.alerts else None
+    operational_summary = req.operationalCorrelations.summary.strip()
+
+    if req.totalReviews == 0:
+        return ReviewSentimentSummarizeResponse(
+            summary="No customer reviews were found for this period."
+        )
+
+    if req.sentiment == "POSITIVE":
+        summary = (
+            f"Customer feedback is positive for this period. "
+            f"Average rating is {req.averageRating:.2f} across {req.totalReviews} reviews."
+        )
+    elif req.sentiment == "NEUTRAL":
+        summary = (
+            f"Customer feedback is generally neutral for this period. "
+            f"Average rating is {req.averageRating:.2f} across {req.totalReviews} reviews."
+        )
+    else:
+        summary = (
+            f"Customer feedback is {req.sentiment.lower()} for this period. "
+            f"Average rating is {req.averageRating:.2f} across {req.totalReviews} reviews."
+        )
+
+    if common_issues:
+        if len(common_issues) == 1:
+            summary += f" The main recurring issue is {common_issues[0]}."
+        else:
+            summary += (
+                f" The main recurring issues are {common_issues[0]} and {common_issues[1]}."
+            )
+
+    if affected_items:
+        if len(affected_items) == 1:
+            summary += f" Feedback is most concentrated around {affected_items[0]}."
+        else:
+            summary += (
+                f" Feedback is most concentrated around {affected_items[0]} and {affected_items[1]}."
+            )
+
+    if req.trend.direction == "IMPROVING":
+        summary += (
+            f" Average rating improved by {req.trend.averageRatingDelta:.2f} points "
+            f"versus the previous period."
+        )
+    elif req.trend.direction == "DECLINING":
+        summary += (
+            f" Average rating declined by {abs(req.trend.averageRatingDelta):.2f} points "
+            f"versus the previous period."
+        )
+    elif req.trend.direction == "STABLE":
+        summary += " Average rating is stable versus the previous period."
+
+    if top_alert:
+        summary += f" Alert: {top_alert}"
+
+    if operational_summary:
+        summary += f" {operational_summary}"
+
+    summary = " ".join(summary.split())
+    return ReviewSentimentSummarizeResponse(summary=summary[:600])
 
 # --- Demand Forecasting ML Engine ---
 
