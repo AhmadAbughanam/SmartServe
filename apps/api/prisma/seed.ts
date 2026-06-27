@@ -447,6 +447,29 @@ async function seedLogicalAnalyticsData(params: {
     }
   }
 
+  for (const table of tables) {
+    const activeSession = await prisma.session.findFirst({
+      where: { branchId, tableId: table.id, status: "ACTIVE" },
+      orderBy: { startTime: "desc" },
+      select: { id: true, startTime: true },
+    });
+
+    const latestSession = await prisma.session.findFirst({
+      where: { branchId, tableId: table.id },
+      orderBy: { startTime: "desc" },
+      select: { id: true, startTime: true },
+    });
+
+    await prisma.table.update({
+      where: { id: table.id },
+      data: {
+        status: activeSession ? "OCCUPIED" : "AVAILABLE",
+        lastSessionId: latestSession?.id ?? null,
+        lastOccupiedTime: latestSession?.startTime ?? null,
+      },
+    });
+  }
+
   // Final inventory snapshot tells a clear analytics story: top sellers are low, slow movers are healthy.
   await prisma.inventoryItem.updateMany({
     where: { branchId, name: { in: ["Beef Patty", "Burger Buns", "Cola Cans"] } },

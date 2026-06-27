@@ -47,6 +47,11 @@ This file is the rolling project memory. Claude or any coding agent working in t
 
 - Updated the VPS deployment workflow to install dependencies with `--include=optional --legacy-peer-deps` and to run `npm rebuild sharp || true` afterward so Linux-native optional packages such as Sharp's platform binaries are more likely to be present during PM2-based host deployments.
 
+### 2026-06-27 — Table Availability Derived From Active Sessions
+
+- Updated backend table-availability reads so customer table-access and waiter floor/workspace flows derive occupancy from the presence of an `ACTIVE` session instead of trusting stale `Table.status` or `lastSessionId` alone.
+- Updated analytics/demo seeding to reconcile each table after synthetic session creation so seeded `Table.status`, `lastSessionId`, and `lastOccupiedTime` stay aligned with the sessions stored in the database.
+
 ### 2026-06-20 — SaaS Notifications Surface Removed
 
 - Removed the SaaS `Notifications` page and the related sidebar section because the notifications surface is no longer part of the desired SaaS navigation.

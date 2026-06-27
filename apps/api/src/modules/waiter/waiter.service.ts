@@ -80,6 +80,23 @@ export class WaiterService {
       where: { branchId },
       orderBy: { tableCode: "asc" },
       include: {
+        sessions: {
+          where: { status: SessionStatus.ACTIVE },
+          orderBy: { startTime: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            status: true,
+            guestCount: true,
+            startTime: true,
+            orders: {
+              select: {
+                id: true, orderStatus: true, totalAmount: true, paymentStatus: true, orderDateTime: true,
+                assignedWaiterId: true,
+              },
+            },
+          },
+        },
         lastSession: {
           select: {
             id: true, status: true, guestCount: true, startTime: true,
@@ -106,7 +123,12 @@ export class WaiterService {
     const now = Date.now();
 
     return tables.map((t) => {
-      const activeSession = t.lastSession?.status === "ACTIVE" ? t.lastSession : null;
+      const activeSession = t.sessions[0] ?? (t.lastSession?.status === "ACTIVE" ? t.lastSession : null);
+      const effectiveStatus = activeSession
+        ? TableStatus.OCCUPIED
+        : t.status === TableStatus.OCCUPIED
+          ? TableStatus.AVAILABLE
+          : t.status;
 
       let orderCount = 0;
       let hasReadyOrders = false;
@@ -137,12 +159,12 @@ export class WaiterService {
 
       // Derive attention state
       let attentionState: AttentionState;
-      if (t.status === "AVAILABLE") attentionState = "AVAILABLE";
-      else if (t.status === "RESERVED") attentionState = "RESERVED";
-      else if (t.status === "CLEANING") {
+      if (effectiveStatus === "AVAILABLE") attentionState = "AVAILABLE";
+      else if (effectiveStatus === "RESERVED") attentionState = "RESERVED";
+      else if (effectiveStatus === "CLEANING") {
         // Check if session ended — turnover needed
         attentionState = t.lastSession?.status === "COMPLETED" ? "TURNOVER_REQUIRED" : "CLEANING";
-      } else if (t.status === "OUT_OF_SERVICE") attentionState = "OUT_OF_SERVICE";
+      } else if (effectiveStatus === "OUT_OF_SERVICE") attentionState = "OUT_OF_SERVICE";
       else if (activeRequests > 0 && !paymentPending) attentionState = "ASSISTANCE_NEEDED";
       else if (paymentPending) attentionState = "PAYMENT_PENDING";
       else if (hasReadyOrders) attentionState = "ORDER_READY";
@@ -152,7 +174,7 @@ export class WaiterService {
         id: t.id,
         tableCode: t.tableCode,
         capacity: t.capacity,
-        status: t.status,
+        status: effectiveStatus,
         zone: t.zone,
         posX: t.posX,
         posY: t.posY,
@@ -226,6 +248,22 @@ export class WaiterService {
       where: { id: tableId },
       include: {
         branch: { select: { tenantId: true, name: true } },
+        sessions: {
+          where: { status: SessionStatus.ACTIVE },
+          orderBy: { startTime: "desc" },
+          take: 1,
+          include: {
+            orders: {
+              orderBy: { orderDateTime: "desc" },
+              include: {
+                assignedWaiter: { select: { id: true, name: true } },
+                orderItems: {
+                  include: { menuItem: { select: { id: true, name: true } } },
+                },
+              },
+            },
+          },
+        },
         lastSession: {
           include: {
             orders: {
@@ -262,7 +300,18 @@ export class WaiterService {
       branchId: table.branchId,
     });
 
-    return table;
+    const activeSession = table.sessions[0] ?? null;
+    const effectiveStatus = activeSession
+      ? TableStatus.OCCUPIED
+      : table.status === TableStatus.OCCUPIED
+        ? TableStatus.AVAILABLE
+        : table.status;
+
+    return {
+      ...table,
+      status: effectiveStatus,
+      lastSession: activeSession ?? table.lastSession,
+    };
   }
 
   async serveOrder(orderId: string, staff: AuthenticatedStaff) {
@@ -337,6 +386,12 @@ export class WaiterService {
       where: { id: tableId },
       include: {
         branch: { select: { tenantId: true } },
+        sessions: {
+          where: { status: SessionStatus.ACTIVE },
+          orderBy: { startTime: "desc" },
+          take: 1,
+          select: { id: true, status: true },
+        },
         lastSession: {
           select: { id: true, status: true },
         },
@@ -354,10 +409,12 @@ export class WaiterService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      const activeSession = table.sessions[0] ?? (table.lastSession?.status === SessionStatus.ACTIVE ? table.lastSession : null);
+
       // End active session if still running
-      if (table.lastSession?.status === SessionStatus.ACTIVE) {
+      if (activeSession?.status === SessionStatus.ACTIVE) {
         await tx.session.update({
-          where: { id: table.lastSession.id },
+          where: { id: activeSession.id },
           data: { status: SessionStatus.COMPLETED, endTime: new Date() },
         });
       }
@@ -378,7 +435,7 @@ export class WaiterService {
         data: {
           tenantId: staff.tenantId, branchId: table.branchId, actorStaffId: staff.staffId,
           actionCode: "TABLE_CLEARED", entityType: "Table", entityId: tableId,
-          afterJson: { tableId, tableCode: table.tableCode, sessionEnded: table.lastSession?.status === "ACTIVE" },
+          afterJson: { tableId, tableCode: table.tableCode, sessionEnded: activeSession?.status === "ACTIVE" },
         },
       });
     });
@@ -400,6 +457,12 @@ export class WaiterService {
       where: { id: tableId },
       include: {
         branch: { select: { tenantId: true } },
+        sessions: {
+          where: { status: SessionStatus.ACTIVE },
+          orderBy: { startTime: "desc" },
+          take: 1,
+          select: { id: true, status: true },
+        },
         lastSession: { select: { id: true, status: true } },
       },
     });
@@ -409,11 +472,12 @@ export class WaiterService {
       tenantId: table.branch.tenantId,
       branchId: table.branchId,
     });
-    if (!table.lastSession || table.lastSession.status !== "ACTIVE") {
+    const activeSession = table.sessions[0] ?? (table.lastSession?.status === "ACTIVE" ? table.lastSession : null);
+    if (!activeSession || activeSession.status !== "ACTIVE") {
       throw new BadRequestException("No active session on this table");
     }
 
-    const sessionId = table.lastSession.id;
+    const sessionId = activeSession.id;
     const tenantId = staff.tenantId;
 
     // Load menu items for pricing

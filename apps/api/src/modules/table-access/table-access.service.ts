@@ -58,20 +58,33 @@ export class TableAccessService {
     const tables = await this.prisma.table.findMany({
       where: { branchId },
       orderBy: { tableCode: "asc" },
-      select: {
-        id: true,
-        tableCode: true,
-        capacity: true,
-        status: true,
-        zone: true,
-        locationDescription: true,
+      include: {
+        sessions: {
+          where: { status: "ACTIVE" },
+          select: { id: true },
+          take: 1,
+        },
       },
+    });
+
+    const normalizedTables = tables.map((table) => {
+      const hasActiveSession = table.sessions.length > 0;
+      const effectiveStatus = hasActiveSession
+        ? "OCCUPIED"
+        : table.status === "OCCUPIED"
+          ? "AVAILABLE"
+          : table.status;
+
+      return {
+        ...table,
+        status: effectiveStatus,
+      };
     });
 
     return {
       branchId: branch.id,
       branch: { name: branch.name, location: branch.location },
-      tables,
+      tables: normalizedTables.map(({ sessions: _sessions, ...table }) => table),
     };
   }
 }
