@@ -30,13 +30,15 @@ Key pages in the application include:
 - `apps/web/src/app/admin/menu/page.tsx`: Menu management interface.
 - `apps/web/src/app/admin/inventory/page.tsx`: Inventory management interface.
 - `apps/web/src/app/admin/analytics/page.tsx`: Analytics and AI-powered panels.
+- `apps/web/src/app/saas/controls/page.tsx`: SaaS owner controls, including AI branch controls and diagnostics.
 
 ## Components and Utilities
 
-- `apps/web/srcsrc/components/admin`: Components for the admin dashboard, navigation, and panels.
+- `apps/web/src/components/admin`: Components for the admin dashboard, navigation, and panels.
 - `apps/web/src/components/customer`: Customer-facing components for ordering.
 - `apps/web/src/components/ai`: The menu chat assistant component.
 - `apps/web/src/components/recommendations`: UI for menu recommendations.
+- `apps/web/src/components/admin/ai`: Demand forecasting, review sentiment, and business insight panels.
 - `apps/web/src/components/ui`: Shared UI primitives such as alerts, cards, spinners, and toasts.
 - `apps/web/src/lib/api.ts`: The API client which handles JSON parsing, cookie-based credentials, CSRF token fetching and retrying, authentication helpers, and an upload helper.
 - `apps/web/src/lib/providers.tsx`: Providers for React Query, cart context, and toasts.

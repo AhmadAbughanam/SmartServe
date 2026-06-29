@@ -196,6 +196,96 @@ export class UpdateBranchAiControlsDto {
   @IsString()
   @IsIn(["concise", "friendly", "formal"])
   assistantTone?: "concise" | "friendly" | "formal";
+
+  @IsOptional()
+  @IsString()
+  @IsIn(["rules", "shadow", "ml"])
+  recommendationsEngine?: "rules" | "shadow" | "ml";
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(750)
+  @Max(10000)
+  recommendationsTimeoutMs?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  recommendationsFallbackEnabled?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @Min(0)
+  @Max(1)
+  recommendationsConfidenceThreshold?: number;
+
+  @IsOptional()
+  @IsString()
+  recommendationsModelFamily?: string;
+
+  @IsOptional()
+  @IsString()
+  recommendationsModelVersionPin?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(["rules", "shadow", "ml"])
+  businessInsightsEngine?: "rules" | "shadow" | "ml";
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(750)
+  @Max(10000)
+  businessInsightsTimeoutMs?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  businessInsightsFallbackEnabled?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @Min(0)
+  @Max(1)
+  businessInsightsConfidenceThreshold?: number;
+
+  @IsOptional()
+  @IsString()
+  businessInsightsModelFamily?: string;
+
+  @IsOptional()
+  @IsString()
+  businessInsightsModelVersionPin?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(["rules", "shadow", "ml"])
+  reviewSentimentEngine?: "rules" | "shadow" | "ml";
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(750)
+  @Max(10000)
+  reviewSentimentTimeoutMs?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  reviewSentimentFallbackEnabled?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @Min(0)
+  @Max(1)
+  reviewSentimentConfidenceThreshold?: number;
+
+  @IsOptional()
+  @IsString()
+  reviewSentimentModelFamily?: string;
+
+  @IsOptional()
+  @IsString()
+  reviewSentimentModelVersionPin?: string;
 }
 
 export class SaasRevenueQueryDto {

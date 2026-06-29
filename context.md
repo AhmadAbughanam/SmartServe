@@ -74,7 +74,7 @@ The current project direction includes:
 - Customer OTP delivery uses a backend SMS adapter. Local development can use the noop/dev OTP path; production defaults to Twilio and requires provider credentials.
 - Menu image uploads now use a backend-managed S3-compatible storage path backed by MinIO in Compose; the API stores object references as `/api/menu/images/:key` and serves the bytes back through NestJS.
 - Geo-fencing is implemented as a controlled backend add-on for public QR/table session start. Branch-level settings drive enforcement, the frontend only forwards browser coordinates, and operational logs do not store raw latitude/longitude.
-- `apps/ai-services` contains a FastAPI shell.
+- `apps/ai-services` contains the FastAPI AI boundary, including menu-chat, demand-forecasting, business-insight summarization, review-sentiment summarization, and the new model-backed inference endpoints for recommendations, business insights, and review sentiment.
 - Docker Compose includes PostgreSQL, Redis, and MinIO.
 - Production Compose can either build locally or pull GHCR-published API/web/AI images through the same service definitions, so a single-node VPS can move from manual builds toward pull-based CD without changing runtime topology.
 - Shared TypeScript contracts exist for roles, scopes, status values, health payloads, and domain events.

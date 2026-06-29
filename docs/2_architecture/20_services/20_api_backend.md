@@ -27,7 +27,20 @@ The backend follows conventional NestJS module structure:
 - `RealtimeService`: An in-process event bus using RxJS for Server-Sent Events (SSE).
 - `RequestLoggerMiddleware`: Implements request logging with unique request IDs.
 - **Provider Contracts:** Located in `apps/api/src/contracts`, these define interfaces for external services like `PaymentGateway`, `NotificationChannel`, `ObjectStorage`, `EventBus`, and `AiProvider`.
+- AI-related modules currently include menu chat, recommendations, demand forecasting, business insights, review sentiment, and SaaS AI controls/diagnostics.
 
 ## API Documentation
 
-The backend exposes numerous routes across its controller modules. The `docs/graduation/api-summary.md` file states there are 155 endpoints across 24 controller modules. The definitive source for all routes is the controller code found under `apps/api/src/modules/**`.
+The backend exposes numerous routes across its controller modules. The definitive source for current routes is the controller code under `apps/api/src/modules/**`.
+
+Important AI-related public or staff-facing routes include:
+
+- `POST /api/ai/menu-chat`
+- `POST /api/recommendations/menu`
+- `POST /api/recommendations/telemetry`
+- `GET /api/admin/ai/demand-forecast`
+- `GET /api/admin/ai/business-insights`
+- `GET /api/admin/ai/review-sentiment`
+- `GET /api/saas/ai/overview`
+- `GET /api/saas/ai/branches`
+- `GET /api/saas/ai/branches/:branchId`

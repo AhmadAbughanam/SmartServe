@@ -1,6 +1,13 @@
 # Deployment Guide
 
-This guide describes the production-like deployment of the Smart Restaurant OS using Docker Compose.
+This guide describes the production deployment shape currently present in the repository.
+
+The repo contains two deployment styles:
+
+- Docker Compose production topology in `docker-compose.prod.yml`
+- a VPS SSH workflow in `.github/workflows/deploy-vps.yml` that builds on the host and restarts PM2-managed processes
+
+This document focuses on the Docker Compose path because it is the repo's most complete infrastructure topology.
 
 ## Production Architecture
 
@@ -8,7 +15,7 @@ This guide describes the production-like deployment of the Smart Restaurant OS u
 - **Web (Next.js):** The frontend application.
 - **API (NestJS):** The backend application. It connects to the database and other services.
 - **Postgres, Redis, MinIO:** Data services that are only reachable within the Docker network.
-- **AI (FastAPI):** An optional service for AI features.
+- **AI (FastAPI):** An optional internal service for menu chat helpers, demand forecasting, AI summaries, and ML inference endpoints.
 
 ## Production Rollout
 
@@ -36,6 +43,16 @@ npm run audit:security
 npm run build
 npm run validate:prod-env
 docker compose -f docker-compose.prod.yml --env-file .env.production config
+```
+
+If you deploy through the host-based PM2 workflow instead of Docker Compose, run at least these gates before pushing:
+
+```bash
+npm ci
+npm run prisma:validate
+npm run typecheck
+npm run test:critical
+npm run build
 ```
 
 Initial preflight no longer requires TLS files. TLS file checks run automatically once you pass a live `https://...` URL to the rehearsal command or explicitly set `REQUIRE_TLS_FILES=1`.
@@ -125,6 +142,18 @@ Prometheus and Grafana bind to `127.0.0.1` by default. Keep monitoring private a
 - or an authenticated reverse proxy
 
 Do not expose monitoring ports publicly on the VPS.
+
+## AI Service Notes
+
+The platform can run without the FastAPI service, but these capabilities degrade when `AI_SERVICE_URL` is missing or unhealthy:
+
+- menu chat hosted/helper path
+- demand forecasting ML path
+- business insight ML inference and AI summary path
+- review sentiment ML inference and AI summary path
+- recommendation ML reranking path
+
+The NestJS backend keeps deterministic fallbacks for these features, so AI unavailability should reduce quality rather than break core restaurant flows.
 
 ## Rehearsal Smoke Checklist
 

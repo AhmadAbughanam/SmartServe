@@ -30,8 +30,39 @@ You can run other, more specific tests for different modules:
 ```bash
 npm run test:recommendations --workspace @smart-restaurant/api
 npm run test:menu-chatbot --workspace @smart-restaurant/api
+npm run test:demand-forecast --workspace @smart-restaurant/api
+npm run test:business-insights --workspace @smart-restaurant/api
 npm run test:review-sentiment --workspace @smart-restaurant/api
-# and so on...
+npm run test:ai-output-validation --workspace @smart-restaurant/api
+```
+
+Other useful API scripts include:
+
+```bash
+npm run test:reviews --workspace @smart-restaurant/api
+npm run test:branch-access --workspace @smart-restaurant/api
+npm run test:session-concurrency --workspace @smart-restaurant/api
+npm run test:public-order --workspace @smart-restaurant/api
+npm run test:payment-safety --workspace @smart-restaurant/api
+npm run test:webhook-signature --workspace @smart-restaurant/api
+npm run test:inventory-transactions --workspace @smart-restaurant/api
+npm run test:dto-validation --workspace @smart-restaurant/api
+```
+
+### Typechecks
+
+Use these commands for static validation:
+
+```bash
+npm run typecheck
+npm run typecheck:api
+npm run typecheck:web
+```
+
+For the Python AI service, a lightweight syntax check is:
+
+```bash
+python -m py_compile apps/ai-services/app/main.py
 ```
 
 ### Security Audit

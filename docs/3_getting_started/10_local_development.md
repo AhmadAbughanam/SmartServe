@@ -48,7 +48,17 @@ API at **http://localhost:4000** — verify: `curl http://localhost:4000/api/hea
 
 ## 6. Optional: start the Python AI service
 
-The backend works without this service, but AI-assisted features such as menu chat and business insight summaries can use it when `AI_SERVICE_URL` points to the FastAPI server.
+The backend works without this service, but several AI-assisted paths use it when `AI_SERVICE_URL` points to the FastAPI server.
+
+Current FastAPI-backed features include:
+
+- menu chat helper
+- demand forecasting
+- business insight summarization
+- review sentiment summarization
+- recommendation reranking
+- business insight inference
+- review sentiment inference
 
 From PowerShell:
 
@@ -74,6 +84,12 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 AI service at **http://localhost:8000** — verify: `curl http://localhost:8000/health`
+
+Optional capability check:
+
+```bash
+curl http://localhost:8000/capabilities
+```
 
 To let the NestJS backend call it, set this in `apps/api/.env`:
 

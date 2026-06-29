@@ -26,6 +26,7 @@ import { PrismaService } from "../../prisma/prisma.service.js";
 import type { AuthenticatedStaff } from "../auth/types/auth.types.js";
 import type { ReviewSentimentQueryDto } from "./dto/review-sentiment-query.dto.js";
 import { AI_FALLBACK_MESSAGE, validateReviewSentimentSummaryPayload } from "../ai/ai-output-validation.js";
+import { normalizeAiEngineControls } from "../ai/ai-engine-controls.js";
 
 const MAX_RANGE_DAYS = 180;
 const REVIEW_SENTIMENT_SOURCE = "REVIEW_SENTIMENT_ANALYZER_MVP";
@@ -84,6 +85,7 @@ export class ReviewSentimentService {
     });
     if (!branch) throw new NotFoundException("Branch not found");
     this.assertStaffCanAnalyzeBranch(staff, branch.tenantId, branch.id);
+    const engineControls = await this.loadBranchAiControls(branch.tenantId, branch.id);
 
     if (query.menuItemId) {
       const menuItem = await this.prisma.menuItem.findFirst({
@@ -118,15 +120,29 @@ export class ReviewSentimentService {
 
     const totalReviews = reviews.length;
     const averageRating = calculateAverageRating(reviews);
-    const commonIssues = calculateCommonIssues(reviews);
-    const affectedItems = calculateAffectedItems(reviews, query.menuItemId);
-    const itemTimelines = calculateItemTimelines(reviews, from, to, query.menuItemId);
+    let commonIssues = calculateCommonIssues(reviews);
+    let affectedItems = calculateAffectedItems(reviews, query.menuItemId);
+    let itemTimelines = calculateItemTimelines(reviews, from, to, query.menuItemId);
     const operationalCorrelations = calculateOperationalCorrelations(reviews);
-    const sentiment = determineSentiment(
+    let sentiment = determineSentiment(
       totalReviews,
       averageRating,
       commonIssues,
     );
+    const inference = await this.applyReviewInference({
+      branchId: branch.id,
+      tenantId: branch.tenantId,
+      query,
+      from,
+      to,
+      reviews,
+      controls: engineControls?.reviewSentiment,
+      base: { sentiment, commonIssues, affectedItems, itemTimelines },
+    });
+    sentiment = inference.sentiment;
+    commonIssues = inference.commonIssues;
+    affectedItems = inference.affectedItems;
+    itemTimelines = inference.itemTimelines;
     const previousCommonIssues = calculateCommonIssues(previousReviews);
     const trend = calculateTrend({
       currentAverageRating: averageRating,
@@ -228,6 +244,9 @@ export class ReviewSentimentService {
       itemTimelines,
       operationalCorrelations,
       actionSuggestions,
+      engine: inference.mode === "ml" ? "ML" : "RULES",
+      modelVersion: inference.modelVersion,
+      confidence: inference.confidence,
     };
 
     void this.writeAuditLog(response, {
@@ -236,6 +255,9 @@ export class ReviewSentimentService {
       fromDate: from,
       toDate: to,
       menuItemId: query.menuItemId,
+      engineMode: inference.mode,
+      shadowPayload: inference.shadowPayload,
+      modelVersion: inference.modelVersion,
     });
 
     return response;
@@ -301,6 +323,163 @@ export class ReviewSentimentService {
     });
   }
 
+  private async loadBranchAiControls(tenantId: string, branchId: string) {
+    const settings = await this.prisma.branchSettings.findFirst({
+      where: { tenantId, branchId },
+      select: { aiConfigJson: true },
+    });
+    return normalizeAiEngineControls(settings?.aiConfigJson);
+  }
+
+  private async applyReviewInference(input: {
+    branchId: string;
+    tenantId: string;
+    query: ReviewSentimentQueryDto;
+    from: Date;
+    to: Date;
+    reviews: ReviewWithSignals[];
+    controls?: ReturnType<typeof normalizeAiEngineControls>["reviewSentiment"];
+    base: {
+      sentiment: ReviewSentiment;
+      commonIssues: ReviewCommonIssue[];
+      affectedItems: ReviewAffectedItem[];
+      itemTimelines: ReviewItemComplaintTimeline[];
+    };
+  }) {
+    if (
+      !input.controls ||
+      input.controls.engineMode === "rules" ||
+      input.reviews.length < 3 ||
+      !process.env.AI_SERVICE_URL
+    ) {
+      return {
+        mode: "rules" as const,
+        sentiment: input.base.sentiment,
+        commonIssues: input.base.commonIssues,
+        affectedItems: input.base.affectedItems,
+        itemTimelines: input.base.itemTimelines,
+        modelVersion: undefined,
+        confidence: undefined,
+        shadowPayload: null,
+      };
+    }
+
+    const controls = input.controls;
+    const inferred = await this.fetchReviewInference({
+      ...input,
+      controls,
+    });
+    if (!inferred || inferred.confidence < controls.confidenceThreshold) {
+      return {
+        mode: "rules" as const,
+        sentiment: input.base.sentiment,
+        commonIssues: input.base.commonIssues,
+        affectedItems: input.base.affectedItems,
+        itemTimelines: input.base.itemTimelines,
+        modelVersion: inferred?.modelVersion,
+        confidence: inferred?.confidence,
+        shadowPayload: null,
+      };
+    }
+
+    if (controls.engineMode === "shadow") {
+      return {
+        mode: "shadow" as const,
+        sentiment: input.base.sentiment,
+        commonIssues: input.base.commonIssues,
+        affectedItems: input.base.affectedItems,
+        itemTimelines: input.base.itemTimelines,
+        modelVersion: inferred.modelVersion,
+        confidence: inferred.confidence,
+        shadowPayload: {
+          sentiment: inferred.sentiment,
+          commonIssues: inferred.commonIssues,
+          affectedItems: inferred.affectedItems,
+          itemTimelines: inferred.itemTimelines,
+        },
+      };
+    }
+
+    return {
+      mode: "ml" as const,
+      sentiment: inferred.sentiment,
+      commonIssues: inferred.commonIssues,
+      affectedItems: inferred.affectedItems,
+      itemTimelines: inferred.itemTimelines,
+      modelVersion: inferred.modelVersion,
+      confidence: inferred.confidence,
+      shadowPayload: {
+        sentiment: inferred.sentiment,
+        commonIssues: inferred.commonIssues,
+        affectedItems: inferred.affectedItems,
+        itemTimelines: inferred.itemTimelines,
+      },
+    };
+  }
+
+  private async fetchReviewInference(input: {
+    branchId: string;
+    tenantId: string;
+    query: ReviewSentimentQueryDto;
+    from: Date;
+    to: Date;
+    reviews: ReviewWithSignals[];
+    controls: ReturnType<typeof normalizeAiEngineControls>["reviewSentiment"];
+    base: {
+      sentiment: ReviewSentiment;
+      commonIssues: ReviewCommonIssue[];
+      affectedItems: ReviewAffectedItem[];
+      itemTimelines: ReviewItemComplaintTimeline[];
+    };
+  }) {
+    const aiServiceUrl = process.env.AI_SERVICE_URL;
+    if (!aiServiceUrl) return null;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), input.controls.timeoutMs);
+    try {
+      const response = await fetch(`${aiServiceUrl}/review-sentiment/infer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: input.tenantId,
+          branchId: input.branchId,
+          from: input.query.from,
+          to: input.query.to,
+          menuItemId: input.query.menuItemId,
+          confidenceThreshold: input.controls.confidenceThreshold,
+          modelFamily: input.controls.modelFamily,
+          modelVersionPin: input.controls.modelVersionPin,
+          reviews: input.reviews.map((review) => ({
+            id: review.id,
+            createdAt: review.createdAt.toISOString(),
+            overallRating: review.overallRating,
+            comment: review.comment,
+            issueTags: review.issueTags.map((tag) => tag.tag),
+            itemReviews: review.itemReviews.map((itemReview) => ({
+              menuItemId: itemReview.menuItemId,
+              menuItemName: itemReview.menuItem.name,
+              rating: itemReview.rating,
+              comment: itemReview.comment,
+            })),
+          })),
+          baseline: input.base,
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok) return null;
+      const data = (await response.json()) as unknown;
+      return validateReviewSentimentInferencePayload(data);
+    } catch (error) {
+      this.logger.debug(
+        `Review sentiment inference unavailable: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   private async writeAuditLog(
     response: ReviewSentimentResponse,
     details: {
@@ -309,6 +488,9 @@ export class ReviewSentimentService {
       fromDate: Date;
       toDate: Date;
       menuItemId?: string;
+      engineMode: "rules" | "shadow" | "ml";
+      shadowPayload: Record<string, unknown> | null;
+      modelVersion?: string;
     },
   ) {
     try {
@@ -328,12 +510,15 @@ export class ReviewSentimentService {
           sentiment: response.sentiment,
           commonIssues: {
             source: REVIEW_SENTIMENT_SOURCE,
+            engineMode: details.engineMode,
+            modelVersion: details.modelVersion,
             items: toJson(response.commonIssues),
             alerts: toJson(response.alerts),
             actionSuggestions: toJson(response.actionSuggestions),
           },
           affectedItems: {
             source: REVIEW_SENTIMENT_SOURCE,
+            shadowPayload: toJson(details.shadowPayload),
             items: toJson(response.affectedItems),
             itemTimelines: toJson(response.itemTimelines),
             operationalCorrelations: toJson(response.operationalCorrelations),
@@ -344,6 +529,124 @@ export class ReviewSentimentService {
       console.warn("Review sentiment audit log write failed", error);
     }
   }
+}
+
+function validateReviewSentimentInferencePayload(value: unknown): {
+  sentiment: ReviewSentiment;
+  commonIssues: ReviewCommonIssue[];
+  affectedItems: ReviewAffectedItem[];
+  itemTimelines: ReviewItemComplaintTimeline[];
+  confidence: number;
+  modelVersion: string;
+} | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  if (
+    record.sentiment !== "POSITIVE" &&
+    record.sentiment !== "NEUTRAL" &&
+    record.sentiment !== "NEGATIVE" &&
+    record.sentiment !== "MIXED"
+  ) {
+    return null;
+  }
+  if (typeof record.confidence !== "number" || !Number.isFinite(record.confidence)) return null;
+  if (typeof record.modelVersion !== "string" || !record.modelVersion.trim()) return null;
+  if (!Array.isArray(record.commonIssues) || !Array.isArray(record.affectedItems) || !Array.isArray(record.itemTimelines)) {
+    return null;
+  }
+
+  const commonIssues: ReviewCommonIssue[] = [];
+  for (const item of record.commonIssues) {
+    if (!item || typeof item !== "object") return null;
+    const candidate = item as Record<string, unknown>;
+    if (typeof candidate.issue !== "string" || !candidate.issue.trim()) return null;
+    if (typeof candidate.count !== "number" || !Number.isFinite(candidate.count)) return null;
+    if (candidate.severity !== "LOW" && candidate.severity !== "MEDIUM" && candidate.severity !== "HIGH") {
+      return null;
+    }
+    commonIssues.push({
+      issue: candidate.issue,
+      count: candidate.count,
+      severity: candidate.severity,
+    });
+  }
+
+  const affectedItems: ReviewAffectedItem[] = [];
+  for (const item of record.affectedItems) {
+    if (!item || typeof item !== "object") return null;
+    const candidate = item as Record<string, unknown>;
+    if (typeof candidate.menuItemId !== "string" || !candidate.menuItemId.trim()) return null;
+    if (typeof candidate.name !== "string" || !candidate.name.trim()) return null;
+    if (typeof candidate.averageRating !== "number" || !Number.isFinite(candidate.averageRating)) return null;
+    if (typeof candidate.issueCount !== "number" || !Number.isFinite(candidate.issueCount)) return null;
+    affectedItems.push({
+      menuItemId: candidate.menuItemId,
+      name: candidate.name,
+      averageRating: candidate.averageRating,
+      issueCount: candidate.issueCount,
+      topIssue: typeof candidate.topIssue === "string" ? candidate.topIssue : undefined,
+    });
+  }
+
+  const itemTimelines: ReviewItemComplaintTimeline[] = [];
+  for (const item of record.itemTimelines) {
+    if (!item || typeof item !== "object") return null;
+    const candidate = item as Record<string, unknown>;
+    if (
+      typeof candidate.menuItemId !== "string" ||
+      typeof candidate.name !== "string" ||
+      typeof candidate.totalIssueCount !== "number" ||
+      !Array.isArray(candidate.points)
+    ) {
+      return null;
+    }
+    if (
+      candidate.direction !== "IMPROVING" &&
+      candidate.direction !== "WORSENING" &&
+      candidate.direction !== "STABLE" &&
+      candidate.direction !== "INSUFFICIENT_DATA"
+    ) {
+      return null;
+    }
+    const points = [];
+    for (const point of candidate.points) {
+      if (!point || typeof point !== "object") return null;
+      const row = point as Record<string, unknown>;
+      if (
+        typeof row.from !== "string" ||
+        typeof row.to !== "string" ||
+        typeof row.reviewCount !== "number" ||
+        typeof row.averageRating !== "number" ||
+        typeof row.issueCount !== "number"
+      ) {
+        return null;
+      }
+      points.push({
+        from: row.from,
+        to: row.to,
+        reviewCount: row.reviewCount,
+        averageRating: row.averageRating,
+        issueCount: row.issueCount,
+        topIssue: typeof row.topIssue === "string" ? row.topIssue : undefined,
+      });
+    }
+    itemTimelines.push({
+      menuItemId: candidate.menuItemId,
+      name: candidate.name,
+      totalIssueCount: candidate.totalIssueCount,
+      direction: candidate.direction,
+      points,
+    });
+  }
+
+  return {
+    sentiment: record.sentiment,
+    commonIssues,
+    affectedItems,
+    itemTimelines,
+    confidence: record.confidence,
+    modelVersion: record.modelVersion,
+  };
 }
 
 function calculateCommonIssues(reviews: ReviewWithSignals[]) {

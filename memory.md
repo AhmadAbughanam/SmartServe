@@ -28,6 +28,17 @@ This file is the rolling project memory. Claude or any coding agent working in t
 
 ## Change Log
 
+### 2026-06-29 — Real-AI Inference Boundary For Recommendations, Insights, And Review Sentiment
+
+- Added three FastAPI inference endpoints as the canonical model boundary: `POST /recommendations/menu/infer`, `POST /business-insights/infer`, and `POST /review-sentiment/infer`.
+- Updated the NestJS recommendation, business-insights, and review-sentiment services to support per-feature `rules` / `shadow` / `ml` engine modes, confidence thresholds, timeout budgets, model metadata, and deterministic fallbacks while preserving the existing frontend API contracts.
+- Extended branch AI controls so SaaS admin configuration can roll out model-backed behavior per feature without exposing the FastAPI service directly to frontend clients.
+
+### 2026-06-29 — Docs Refreshed For Current AI Runtime
+
+- Updated the AI architecture, recommendations, demand-forecasting, local-development, deployment, testing, web-frontend, API-backend, and tech-stack docs to match the current runtime.
+- Added a dedicated AI feature inventory document in `docs/5_features/20_ai_engine/30_ai_feature_inventory.md` covering feature behavior, contracts, fallbacks, implementation details, and UI locations.
+
 ### 2026-06-25 — Login Hydration Mismatch Fix
 
 - Fixed the unified `/login` page clock so it no longer formats `new Date()` during SSR, which was causing hydration mismatches between VPS-rendered HTML and the browser's local timezone.

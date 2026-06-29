@@ -6,6 +6,7 @@ import type {
   MenuRecommendationResponse,
   RecommendationType,
 } from "@smart-restaurant/shared-types";
+import { normalizeAiEngineControls } from "./ai-engine-controls.js";
 import { PrismaService } from "../../prisma/prisma.service.js";
 import crypto from "node:crypto";
 
@@ -20,6 +21,35 @@ interface RecommendedItem {
 type RecommendationCandidate = MenuRecommendationItem & {
   strongestScore: number;
 };
+
+interface RecommendationInferenceCandidate {
+  menuItemId: string;
+  name: string;
+  type: RecommendationType;
+  reason: string;
+  ruleScore: number;
+  features: {
+    historicalSalesCount: number;
+    coPurchaseCount: number;
+    reorderSignal: number;
+    timeSignal: number;
+    impressionCount: number;
+    addToCartCount: number;
+    purchasedCount: number;
+    cartAware: number;
+    hasUserContext: number;
+    cartSize: number;
+    hourOfDay: number;
+    dayOfWeek: number;
+  };
+}
+
+interface RecommendationInferenceResult {
+  menuItemId: string;
+  score: number;
+  confidence: number;
+  explanation?: string;
+}
 
 @Injectable()
 export class RecommendationService {
@@ -42,7 +72,10 @@ export class RecommendationService {
 
     const branch = await this.prisma.branch.findUnique({
       where: { id: input.branchId },
-      select: { tenantId: true },
+      select: {
+        tenantId: true,
+        branchSettings: { select: { aiConfigJson: true } },
+      },
     });
     if (!branch) return { recommendations: [] };
 
@@ -168,21 +201,37 @@ export class RecommendationService {
       .slice(0, limit)
       .map(({ strongestScore: _strongestScore, ...item }) => item);
 
+    const engineControls = normalizeAiEngineControls(
+      branch.branchSettings?.aiConfigJson,
+    );
+    const inference = await this.runRecommendationInference({
+      input,
+      tenantId: branch.tenantId,
+      effectiveUserId,
+      recommendations,
+      controls: engineControls.recommendations,
+    });
+    const finalRecommendations =
+      inference.mode === "ml" ? inference.recommendations : recommendations;
+
     await this.logMenuRecommendations({
       tenantId: branch.tenantId,
       branchId: input.branchId,
       userId: effectiveUserId,
       sessionId: input.sessionId,
       cartItemIds,
-      recommendations,
+      recommendations: finalRecommendations,
       limit,
       surface: input.surface,
       trigger: input.trigger,
       candidatePoolSize: candidates.size,
       fallbackUsed,
+      engineMode: inference.mode,
+      shadowRanking: inference.shadowRanking,
+      modelVersion: inference.modelVersion,
     });
 
-    return { recommendations };
+    return { recommendations: finalRecommendations };
   }
 
   private async addPopularCandidates(input: {
@@ -561,6 +610,248 @@ export class RecommendationService {
     }
   }
 
+  private async runRecommendationInference(input: {
+    input: MenuRecommendationRequest;
+    tenantId: string;
+    effectiveUserId?: string;
+    recommendations: MenuRecommendationItem[];
+    controls: ReturnType<typeof normalizeAiEngineControls>["recommendations"];
+  }) {
+    const base = input.recommendations.map((item) => ({
+      ...item,
+      metadata: {
+        ...item.metadata,
+        engine: "RULES" as const,
+      },
+    }));
+
+    if (input.controls.engineMode === "rules" || base.length < 3) {
+      return {
+        mode: "rules" as const,
+        recommendations: base,
+        shadowRanking: null,
+        modelVersion: undefined,
+      };
+    }
+
+    const aiRanked = await this.fetchRecommendationInference({
+      tenantId: input.tenantId,
+      branchId: input.input.branchId,
+      sessionId: input.input.sessionId,
+      userId: input.effectiveUserId,
+      cartItems: input.input.cartItems,
+      surface: input.input.surface,
+      trigger: input.input.trigger,
+      recommendations: input.recommendations,
+      controls: input.controls,
+    });
+
+    if (!aiRanked) {
+      return {
+        mode: "rules" as const,
+        recommendations: base,
+        shadowRanking: null,
+        modelVersion: undefined,
+      };
+    }
+
+    const shadowRanking = aiRanked.map((item) => item.menuItemId);
+    if (input.controls.engineMode === "shadow") {
+      return {
+        mode: "shadow" as const,
+        recommendations: base,
+        shadowRanking,
+        modelVersion: aiRanked[0]?.metadata.modelVersion,
+      };
+    }
+
+    return {
+      mode: "ml" as const,
+      recommendations: aiRanked,
+      shadowRanking,
+      modelVersion: aiRanked[0]?.metadata.modelVersion,
+    };
+  }
+
+  private async fetchRecommendationInference(input: {
+    tenantId: string;
+    branchId: string;
+    sessionId?: string;
+    userId?: string;
+    cartItems: MenuRecommendationRequest["cartItems"];
+    surface?: MenuRecommendationRequest["surface"];
+    trigger?: MenuRecommendationRequest["trigger"];
+    recommendations: MenuRecommendationItem[];
+    controls: ReturnType<typeof normalizeAiEngineControls>["recommendations"];
+  }): Promise<MenuRecommendationItem[] | null> {
+    const aiServiceUrl = process.env.AI_SERVICE_URL;
+    if (!aiServiceUrl) return null;
+
+    const candidateIds = input.recommendations.map((item) => item.menuItemId);
+    if (!candidateIds.length) return null;
+
+    const [interactionRows, purchaseRows] = await Promise.all([
+      this.prisma.recommendationInteraction.findMany({
+        where: {
+          tenantId: input.tenantId,
+          branchId: input.branchId,
+          menuItemId: { in: candidateIds },
+        },
+        select: { menuItemId: true, interactionType: true },
+        take: 5000,
+      }),
+      this.prisma.orderItem.groupBy({
+        by: ["menuItemId"],
+        where: {
+          tenantId: input.tenantId,
+          branchId: input.branchId,
+          menuItemId: { in: candidateIds },
+          order: {
+            orderStatus: OrderStatus.COMPLETED,
+            orderDateTime: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
+          },
+        },
+        _sum: { quantity: true },
+      }),
+    ]);
+
+    const interactionByItem = new Map<
+      string,
+      { impressionCount: number; addToCartCount: number; purchasedCount: number }
+    >();
+    for (const row of interactionRows) {
+      const existing = interactionByItem.get(row.menuItemId) ?? {
+        impressionCount: 0,
+        addToCartCount: 0,
+        purchasedCount: 0,
+      };
+      if (row.interactionType === "IMPRESSION") existing.impressionCount += 1;
+      if (row.interactionType === "ADD_TO_CART") existing.addToCartCount += 1;
+      if (row.interactionType === "PURCHASED") existing.purchasedCount += 1;
+      interactionByItem.set(row.menuItemId, existing);
+    }
+
+    const purchasedByItem = new Map(
+      purchaseRows.map((row) => [row.menuItemId, row._sum.quantity ?? 0]),
+    );
+
+    const now = new Date();
+    const candidates: RecommendationInferenceCandidate[] = input.recommendations.map((item) => {
+      const interactions = interactionByItem.get(item.menuItemId);
+      return {
+        menuItemId: item.menuItemId,
+        name: item.name,
+        type: item.type,
+        reason: item.reason,
+        ruleScore: item.score,
+        features: {
+          historicalSalesCount: item.metadata.historicalSalesCount ?? 0,
+          coPurchaseCount: item.metadata.coPurchaseCount ?? 0,
+          reorderSignal: item.metadata.reorderSignal ?? 0,
+          timeSignal: item.type === "TIME_BASED" ? 1 : 0,
+          impressionCount: interactions?.impressionCount ?? 0,
+          addToCartCount: interactions?.addToCartCount ?? 0,
+          purchasedCount:
+            Math.max(interactions?.purchasedCount ?? 0, purchasedByItem.get(item.menuItemId) ?? 0),
+          cartAware: input.cartItems.length > 0 ? 1 : 0,
+          hasUserContext: input.userId ? 1 : 0,
+          cartSize: input.cartItems.length,
+          hourOfDay: now.getHours(),
+          dayOfWeek: now.getDay(),
+        },
+      };
+    });
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), input.controls.timeoutMs);
+    try {
+      const response = await fetch(`${aiServiceUrl}/recommendations/menu/infer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: input.tenantId,
+          branchId: input.branchId,
+          sessionId: input.sessionId,
+          userId: input.userId,
+          surface: input.surface,
+          trigger: input.trigger,
+          confidenceThreshold: input.controls.confidenceThreshold,
+          modelFamily: input.controls.modelFamily,
+          modelVersionPin: input.controls.modelVersionPin,
+          candidates,
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok) return null;
+
+      const data = (await response.json()) as unknown;
+      const validated = this.validateRecommendationInferencePayload(data);
+      if (!validated) return null;
+      if (validated.confidence < input.controls.confidenceThreshold) return null;
+
+      const byId = new Map(input.recommendations.map((item) => [item.menuItemId, item]));
+      const ranked: MenuRecommendationItem[] = [];
+      for (const result of validated.results) {
+        const current = byId.get(result.menuItemId);
+        if (!current) continue;
+        ranked.push({
+          ...current,
+          score: result.score,
+          metadata: {
+            ...current.metadata,
+            engine: "ML",
+            modelVersion: validated.modelVersion,
+            confidence: result.confidence,
+            explanations: result.explanation ? [result.explanation] : undefined,
+          },
+        });
+      }
+      return ranked;
+    } catch (error) {
+      this.logger.debug(
+        `Recommendation inference unavailable: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private validateRecommendationInferencePayload(value: unknown): {
+    modelVersion: string;
+    confidence: number;
+    results: RecommendationInferenceResult[];
+  } | null {
+    if (!value || typeof value !== "object") return null;
+    const record = value as Record<string, unknown>;
+    if (typeof record.modelVersion !== "string" || !record.modelVersion.trim()) return null;
+    if (typeof record.confidence !== "number" || !Number.isFinite(record.confidence)) return null;
+    if (!Array.isArray(record.results)) return null;
+
+    const results: RecommendationInferenceResult[] = [];
+    for (const item of record.results) {
+      if (!item || typeof item !== "object") return null;
+      const candidate = item as Record<string, unknown>;
+      if (typeof candidate.menuItemId !== "string" || !candidate.menuItemId.trim()) return null;
+      if (typeof candidate.score !== "number" || !Number.isFinite(candidate.score)) return null;
+      if (typeof candidate.confidence !== "number" || !Number.isFinite(candidate.confidence)) return null;
+
+      results.push({
+        menuItemId: candidate.menuItemId,
+        score: candidate.score,
+        confidence: candidate.confidence,
+        explanation:
+          typeof candidate.explanation === "string" ? candidate.explanation : undefined,
+      });
+    }
+
+    return {
+      modelVersion: record.modelVersion,
+      confidence: record.confidence,
+      results,
+    };
+  }
+
   private async logMenuRecommendations(input: {
     tenantId: string;
     branchId: string;
@@ -573,15 +864,22 @@ export class RecommendationService {
     trigger?: string;
     candidatePoolSize: number;
     fallbackUsed: boolean;
+    engineMode: "rules" | "shadow" | "ml";
+    shadowRanking: string[] | null;
+    modelVersion?: string;
   }) {
     try {
       const metadata = this.toInputJsonObject({
-        algorithmVersion: "menu-rec-rule-v1",
+        algorithmVersion:
+          input.engineMode === "ml" ? "menu-rec-ml-v1" : "menu-rec-rule-v1",
         limit: input.limit,
         surface: input.surface,
         trigger: input.trigger,
         candidatePoolSize: input.candidatePoolSize,
         fallbackUsed: input.fallbackUsed,
+        engineMode: input.engineMode,
+        shadowRanking: input.shadowRanking,
+        modelVersion: input.modelVersion,
         recommendations: input.recommendations.map((item) => ({
           menuItemId: item.menuItemId,
           score: item.score,

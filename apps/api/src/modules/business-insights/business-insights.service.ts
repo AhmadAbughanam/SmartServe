@@ -1,15 +1,18 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   BusinessInsight,
   BusinessInsightsResponse,
+  InsightConfidence,
   InsightPriority,
 } from '@smart-restaurant/shared-types';
 import {
   AI_FALLBACK_MESSAGE,
   validateBusinessInsightSummaryPayload,
 } from '../ai/ai-output-validation.js';
+import { normalizeAiEngineControls } from "../ai/ai-engine-controls.js";
 
 @Injectable()
 export class BusinessInsightsService {
@@ -31,6 +34,10 @@ export class BusinessInsightsService {
     const insights: BusinessInsight[] = [];
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const engineControls =
+      scope === "BRANCH" && targetBranchId
+        ? await this.loadBranchAiControls(tenantId, targetBranchId)
+        : null;
     
     const effectiveFrom = fromDate || startOfDay;
     const effectiveTo = toDate || now;
@@ -493,7 +500,16 @@ export class BusinessInsightsService {
     insights.sort((a, b) => priorityWeight[b.priority] - priorityWeight[a.priority]);
 
     // Avoid overwhelming managers: Cap to top 5 most critical insights
-    const finalInsights = insights.slice(0, 5);
+    const inference = await this.applyInsightInference({
+      tenantId,
+      branchId: targetBranchId,
+      scope,
+      from: effectiveFrom,
+      to: effectiveTo,
+      insights,
+      controls: engineControls?.businessInsights,
+    });
+    const finalInsights = inference.insights.slice(0, 5);
 
     let polishedSummary = `Found ${finalInsights.length} priority insights for the selected period.`;
     let aiFallbackMessage: string | undefined;
@@ -554,6 +570,11 @@ export class BusinessInsightsService {
           insightCount: finalInsights.length,
           categories: finalInsights.map((i) => i.category),
           priorities: finalInsights.map((i) => i.priority),
+          metadata: {
+            engineMode: inference.mode,
+            modelVersion: inference.modelVersion,
+            shadowRanking: inference.shadowRanking,
+          },
         },
       });
     } catch (error) {
@@ -570,6 +591,231 @@ export class BusinessInsightsService {
       to: effectiveTo.toISOString().slice(0, 10),
       summary: polishedSummary,
       aiFallbackMessage,
+      engine: inference.mode === "ml" ? "ML" : "RULES",
+      modelVersion: inference.modelVersion,
+      confidence: inference.confidence,
+    };
+  }
+
+  private async loadBranchAiControls(tenantId: string, branchId: string) {
+    const branchSettingsClient = (
+      this.prisma as unknown as {
+        branchSettings?: {
+          findFirst: (args: unknown) => Promise<{ aiConfigJson: Prisma.JsonValue | null } | null>;
+        };
+      }
+    ).branchSettings;
+    if (!branchSettingsClient) return null;
+
+    const settings = await branchSettingsClient.findFirst({
+      where: { tenantId, branchId },
+      select: { aiConfigJson: true },
+    });
+    return normalizeAiEngineControls(settings?.aiConfigJson);
+  }
+
+  private async applyInsightInference(input: {
+    tenantId: string;
+    branchId?: string;
+    scope: "TENANT" | "BRANCH";
+    from: Date;
+    to: Date;
+    insights: BusinessInsight[];
+    controls?: ReturnType<typeof normalizeAiEngineControls>["businessInsights"];
+  }) {
+    const baseInsights = input.insights.map((insight) => ({
+      ...insight,
+      sourceMetadata: insight.sourceMetadata
+        ? {
+            ...insight.sourceMetadata,
+            engine: "RULES" as const,
+          }
+        : insight.sourceMetadata,
+    }));
+
+    if (
+      !input.controls ||
+      input.controls.engineMode === "rules" ||
+      baseInsights.length < 2 ||
+      !process.env.AI_SERVICE_URL
+    ) {
+      return {
+        mode: "rules" as const,
+        insights: baseInsights,
+        shadowRanking: null,
+        modelVersion: undefined,
+        confidence: "HIGH" as const,
+      };
+    }
+
+    const aiRanked = await this.fetchInsightInference({
+      tenantId: input.tenantId,
+      branchId: input.branchId,
+      scope: input.scope,
+      from: input.from,
+      to: input.to,
+      insights: input.insights,
+      controls: input.controls,
+    });
+    if (!aiRanked) {
+      return {
+        mode: "rules" as const,
+        insights: baseInsights,
+        shadowRanking: null,
+        modelVersion: undefined,
+        confidence: "HIGH" as const,
+      };
+    }
+
+    const shadowRanking = aiRanked.map((insight) => insight.id);
+    if (input.controls.engineMode === "shadow") {
+      return {
+        mode: "shadow" as const,
+        insights: baseInsights,
+        shadowRanking,
+        modelVersion: aiRanked[0]?.sourceMetadata?.modelVersion,
+        confidence: "MEDIUM" as const,
+      };
+    }
+
+    return {
+      mode: "ml" as const,
+      insights: aiRanked,
+      shadowRanking,
+      modelVersion: aiRanked[0]?.sourceMetadata?.modelVersion,
+      confidence: "MEDIUM" as const,
+    };
+  }
+
+  private async fetchInsightInference(input: {
+    tenantId: string;
+    branchId?: string;
+    scope: "TENANT" | "BRANCH";
+    from: Date;
+    to: Date;
+    insights: BusinessInsight[];
+    controls: ReturnType<typeof normalizeAiEngineControls>["businessInsights"];
+  }): Promise<BusinessInsight[] | null> {
+    const aiServiceUrl = process.env.AI_SERVICE_URL;
+    if (!aiServiceUrl) return null;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), input.controls.timeoutMs);
+    try {
+      const response = await fetch(`${aiServiceUrl}/business-insights/infer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: input.tenantId,
+          branchId: input.branchId,
+          scope: input.scope,
+          from: input.from.toISOString(),
+          to: input.to.toISOString(),
+          modelFamily: input.controls.modelFamily,
+          modelVersionPin: input.controls.modelVersionPin,
+          confidenceThreshold: input.controls.confidenceThreshold,
+          insights: input.insights.map((insight) => ({
+            id: insight.id,
+            category: insight.category,
+            priority: insight.priority,
+            title: insight.title,
+            description: insight.description,
+            recommendedAction: insight.recommendedAction,
+            metricValue: insight.metricValue,
+            sourceMetadata: insight.sourceMetadata,
+          })),
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok) return null;
+      const data = (await response.json()) as unknown;
+      const validated = this.validateInsightInferencePayload(data);
+      if (!validated) return null;
+      if (validated.confidence < input.controls.confidenceThreshold) return null;
+
+      const byId = new Map(input.insights.map((insight) => [insight.id, insight]));
+      const ranked: BusinessInsight[] = [];
+      for (const result of validated.results) {
+        const current = byId.get(result.id);
+        if (!current) continue;
+        ranked.push({
+          ...current,
+          priority: result.priority,
+          sourceMetadata: current.sourceMetadata
+            ? {
+                ...current.sourceMetadata,
+                confidence: result.confidence,
+                engine: "ML",
+                modelVersion: validated.modelVersion,
+                explanation: result.explanation,
+              }
+            : current.sourceMetadata,
+        });
+      }
+      return ranked;
+    } catch (error) {
+      this.logger.debug(
+        `Business insight inference unavailable: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private validateInsightInferencePayload(value: unknown): {
+    modelVersion: string;
+    confidence: number;
+    results: Array<{
+      id: string;
+      priority: BusinessInsight["priority"];
+      confidence: InsightConfidence;
+      explanation?: string;
+    }>;
+  } | null {
+    if (!value || typeof value !== "object") return null;
+    const record = value as Record<string, unknown>;
+    if (typeof record.modelVersion !== "string" || !record.modelVersion.trim()) return null;
+    if (typeof record.confidence !== "number" || !Number.isFinite(record.confidence)) return null;
+    if (!Array.isArray(record.results)) return null;
+
+    const results: Array<{
+      id: string;
+      priority: BusinessInsight["priority"];
+      confidence: InsightConfidence;
+      explanation?: string;
+    }> = [];
+    for (const item of record.results) {
+      if (!item || typeof item !== "object") return null;
+      const candidate = item as Record<string, unknown>;
+      if (typeof candidate.id !== "string" || !candidate.id.trim()) return null;
+      if (
+        candidate.priority !== "HIGH" &&
+        candidate.priority !== "MEDIUM" &&
+        candidate.priority !== "LOW"
+      ) {
+        return null;
+      }
+      if (
+        candidate.confidence !== "HIGH" &&
+        candidate.confidence !== "MEDIUM" &&
+        candidate.confidence !== "LOW"
+      ) {
+        return null;
+      }
+      results.push({
+        id: candidate.id,
+        priority: candidate.priority,
+        confidence: candidate.confidence,
+        explanation:
+          typeof candidate.explanation === "string" ? candidate.explanation : undefined,
+      });
+    }
+
+    return {
+      modelVersion: record.modelVersion,
+      confidence: record.confidence,
+      results,
     };
   }
 }

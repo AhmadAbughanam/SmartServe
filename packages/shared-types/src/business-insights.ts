@@ -10,6 +10,9 @@ export interface BusinessInsightSourceMetadata {
   triggerRule: string;
   confidence: InsightConfidence;
   affectedBranchIds?: string[];
+  engine?: 'RULES' | 'ML';
+  modelVersion?: string;
+  explanation?: string;
 }
 
 export interface BusinessInsight {
@@ -36,4 +39,7 @@ export interface BusinessInsightsResponse {
   to: string;
   summary: string;
   aiFallbackMessage?: string;
+  engine?: 'RULES' | 'ML';
+  modelVersion?: string;
+  confidence?: InsightConfidence;
 }

@@ -22,6 +22,11 @@ import {
 import { Decimal } from "@prisma/client/runtime/library";
 import { env } from "../../config/env.js";
 import { MenuChatbotService } from "../ai/menu-chatbot.service.js";
+import {
+  normalizeAiEngineControls,
+  serializeAiEngineControls,
+  type AiEngineMode,
+} from "../ai/ai-engine-controls.js";
 import { PrismaService } from "../../prisma/prisma.service.js";
 import { hashPassword } from "../auth/password.util.js";
 import type {
@@ -50,6 +55,24 @@ interface NormalizedAiControls {
   maxResponseLength: number;
   maxSuggestions: number;
   assistantTone: "concise" | "friendly" | "formal";
+  recommendationsEngine: AiEngineMode;
+  recommendationsTimeoutMs: number;
+  recommendationsFallbackEnabled: boolean;
+  recommendationsConfidenceThreshold: number;
+  recommendationsModelFamily: string;
+  recommendationsModelVersionPin?: string;
+  businessInsightsEngine: AiEngineMode;
+  businessInsightsTimeoutMs: number;
+  businessInsightsFallbackEnabled: boolean;
+  businessInsightsConfidenceThreshold: number;
+  businessInsightsModelFamily: string;
+  businessInsightsModelVersionPin?: string;
+  reviewSentimentEngine: AiEngineMode;
+  reviewSentimentTimeoutMs: number;
+  reviewSentimentFallbackEnabled: boolean;
+  reviewSentimentConfidenceThreshold: number;
+  reviewSentimentModelFamily: string;
+  reviewSentimentModelVersionPin?: string;
 }
 
 interface AiBranchLogStats {
@@ -281,6 +304,21 @@ export class SaasAdminService {
             maxResponseLength: 500,
             maxSuggestions: 5,
             assistantTone: "concise",
+            recommendationsEngine: "shadow",
+            recommendationsTimeoutMs: 3500,
+            recommendationsFallbackEnabled: true,
+            recommendationsConfidenceThreshold: 0.55,
+            recommendationsModelFamily: "gradient_boosting_ranker_v1",
+            businessInsightsEngine: "shadow",
+            businessInsightsTimeoutMs: 3500,
+            businessInsightsFallbackEnabled: true,
+            businessInsightsConfidenceThreshold: 0.5,
+            businessInsightsModelFamily: "isolation_forest_v1",
+            reviewSentimentEngine: "shadow",
+            reviewSentimentTimeoutMs: 3500,
+            reviewSentimentFallbackEnabled: true,
+            reviewSentimentConfidenceThreshold: 0.55,
+            reviewSentimentModelFamily: "tfidf_logreg_v1",
           },
         },
       });
@@ -3926,6 +3964,7 @@ export class SaasAdminService {
 
   private normalizeAiControls(raw: Prisma.JsonValue | null | undefined): NormalizedAiControls {
     const config = this.objectMetadata(raw);
+    const engines = normalizeAiEngineControls(raw);
 
     const dailyHostedRequestLimit =
       typeof config.dailyHostedRequestLimit === "number" && Number.isFinite(config.dailyHostedRequestLimit)
@@ -3967,11 +4006,29 @@ export class SaasAdminService {
       maxResponseLength,
       maxSuggestions,
       assistantTone,
+      recommendationsEngine: engines.recommendations.engineMode,
+      recommendationsTimeoutMs: engines.recommendations.timeoutMs,
+      recommendationsFallbackEnabled: engines.recommendations.fallbackEnabled,
+      recommendationsConfidenceThreshold: engines.recommendations.confidenceThreshold,
+      recommendationsModelFamily: engines.recommendations.modelFamily,
+      recommendationsModelVersionPin: engines.recommendations.modelVersionPin,
+      businessInsightsEngine: engines.businessInsights.engineMode,
+      businessInsightsTimeoutMs: engines.businessInsights.timeoutMs,
+      businessInsightsFallbackEnabled: engines.businessInsights.fallbackEnabled,
+      businessInsightsConfidenceThreshold: engines.businessInsights.confidenceThreshold,
+      businessInsightsModelFamily: engines.businessInsights.modelFamily,
+      businessInsightsModelVersionPin: engines.businessInsights.modelVersionPin,
+      reviewSentimentEngine: engines.reviewSentiment.engineMode,
+      reviewSentimentTimeoutMs: engines.reviewSentiment.timeoutMs,
+      reviewSentimentFallbackEnabled: engines.reviewSentiment.fallbackEnabled,
+      reviewSentimentConfidenceThreshold: engines.reviewSentiment.confidenceThreshold,
+      reviewSentimentModelFamily: engines.reviewSentiment.modelFamily,
+      reviewSentimentModelVersionPin: engines.reviewSentiment.modelVersionPin,
     };
   }
 
   private serializeAiControls(base: JsonRecord, controls: NormalizedAiControls): Prisma.InputJsonObject {
-    return {
+    const baseConfig = {
       ...base,
       menuChatEnabled: controls.menuChatEnabled,
       hostedLlmEnabled: controls.hostedLlmEnabled,
@@ -3983,7 +4040,34 @@ export class SaasAdminService {
       maxResponseLength: controls.maxResponseLength,
       maxSuggestions: controls.maxSuggestions,
       assistantTone: controls.assistantTone,
-    } as Prisma.InputJsonObject;
+    };
+
+    return serializeAiEngineControls(baseConfig, {
+      recommendations: {
+        engineMode: controls.recommendationsEngine,
+        confidenceThreshold: controls.recommendationsConfidenceThreshold,
+        timeoutMs: controls.recommendationsTimeoutMs,
+        fallbackEnabled: controls.recommendationsFallbackEnabled,
+        modelFamily: controls.recommendationsModelFamily,
+        modelVersionPin: controls.recommendationsModelVersionPin,
+      },
+      businessInsights: {
+        engineMode: controls.businessInsightsEngine,
+        confidenceThreshold: controls.businessInsightsConfidenceThreshold,
+        timeoutMs: controls.businessInsightsTimeoutMs,
+        fallbackEnabled: controls.businessInsightsFallbackEnabled,
+        modelFamily: controls.businessInsightsModelFamily,
+        modelVersionPin: controls.businessInsightsModelVersionPin,
+      },
+      reviewSentiment: {
+        engineMode: controls.reviewSentimentEngine,
+        confidenceThreshold: controls.reviewSentimentConfidenceThreshold,
+        timeoutMs: controls.reviewSentimentTimeoutMs,
+        fallbackEnabled: controls.reviewSentimentFallbackEnabled,
+        modelFamily: controls.reviewSentimentModelFamily,
+        modelVersionPin: controls.reviewSentimentModelVersionPin,
+      },
+    });
   }
 
   private readBoolean(raw: Prisma.JsonValue | null | undefined, key: string, fallback: boolean) {

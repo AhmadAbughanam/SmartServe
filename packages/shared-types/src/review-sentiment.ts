@@ -129,4 +129,7 @@ export interface ReviewSentimentResponse {
   itemTimelines: ReviewItemComplaintTimeline[];
   operationalCorrelations: ReviewOperationalCorrelations;
   actionSuggestions: ReviewActionSuggestion[];
+  engine?: "RULES" | "ML";
+  modelVersion?: string;
+  confidence?: number;
 }

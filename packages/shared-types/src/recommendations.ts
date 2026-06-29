@@ -31,6 +31,10 @@ export interface RecommendationMetadata {
   timeOfDaySignal?: string;
   reorderSignal?: number;
   scoreContributionPerStrategy?: Record<string, number>;
+  engine?: "RULES" | "ML";
+  modelVersion?: string;
+  confidence?: number;
+  explanations?: string[];
 }
 
 export interface MenuRecommendationItem {
