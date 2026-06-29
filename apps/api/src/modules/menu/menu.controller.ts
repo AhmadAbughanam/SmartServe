@@ -10,6 +10,7 @@ import {
   Query,
   Res,
   StreamableFile,
+  UnauthorizedException,
   UploadedFile,
   UseInterceptors,
 } from "@nestjs/common";
@@ -75,6 +76,9 @@ export class MenuController {
     @Query("branchId") branchId: string,
     @CurrentUser() user: AuthenticatedCustomer,
   ) {
+    if (!user?.userId) {
+      throw new UnauthorizedException("Customer authentication required");
+    }
     return this.menuService.listFavorites(user.userId, branchId);
   }
 
@@ -84,6 +88,9 @@ export class MenuController {
     @Body() body: SetFavoriteDto,
     @CurrentUser() user: AuthenticatedCustomer,
   ) {
+    if (!user?.userId) {
+      throw new UnauthorizedException("Customer authentication required");
+    }
     return this.menuService.setFavorite(user.userId, itemId, body);
   }
 

@@ -609,30 +609,43 @@ export class DemandForecastService {
       fallbackModelUsed: boolean;
     },
   ) {
+    const baseData = {
+      tenantId: details.tenantId,
+      branchId: response.branchId,
+      forecastDate: details.forecastDate,
+      lookbackDays: response.lookbackDays,
+      categoryId: details.categoryId,
+      expectedOrders: response.expectedOrders,
+      expectedRevenue: new Decimal(response.expectedRevenue),
+      metadata: toJson({
+        source: FORECAST_SOURCE,
+        sampleDays: details.sampleDays,
+        sampleMode: details.sampleMode,
+        historicalOrderCount: details.historicalOrderCount,
+        forecastItemCount: response.items.length,
+        fallbackModelUsed: details.fallbackModelUsed,
+        dataQualityWarnings: response.dataQualityWarnings,
+      }),
+    };
+
     try {
       await this.prisma.demandForecastLog.create({
         data: {
-          tenantId: details.tenantId,
-          branchId: response.branchId,
+          ...baseData,
           requestedById: details.requestedById,
-          forecastDate: details.forecastDate,
-          lookbackDays: response.lookbackDays,
-          categoryId: details.categoryId,
-          expectedOrders: response.expectedOrders,
-          expectedRevenue: new Decimal(response.expectedRevenue),
-          metadata: toJson({
-            source: FORECAST_SOURCE,
-            sampleDays: details.sampleDays,
-            sampleMode: details.sampleMode,
-            historicalOrderCount: details.historicalOrderCount,
-            forecastItemCount: response.items.length,
-            fallbackModelUsed: details.fallbackModelUsed,
-            dataQualityWarnings: response.dataQualityWarnings,
-          }),
         },
       });
     } catch (error) {
-      console.warn("Demand forecast audit log write failed", error);
+      try {
+        await this.prisma.demandForecastLog.create({
+          data: {
+            ...baseData,
+            requestedById: null,
+          },
+        });
+      } catch (retryError) {
+        console.warn("Demand forecast audit log write failed", retryError);
+      }
     }
   }
 }

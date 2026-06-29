@@ -39,6 +39,11 @@ This file is the rolling project memory. Claude or any coding agent working in t
 - Updated the AI architecture, recommendations, demand-forecasting, local-development, deployment, testing, web-frontend, API-backend, and tech-stack docs to match the current runtime.
 - Added a dedicated AI feature inventory document in `docs/5_features/20_ai_engine/30_ai_feature_inventory.md` covering feature behavior, contracts, fallbacks, implementation details, and UI locations.
 
+### 2026-06-29 — Runtime Hardening For Favorites And Forecast Audit Logs
+
+- Hardened `GET/POST /api/menu/*favorite*` so non-customer requests now fail cleanly with auth errors instead of crashing with `userId` on `undefined`.
+- Hardened demand-forecast audit logging so a bad `requestedById` foreign key falls back to a null requester instead of emitting repeated Prisma FK errors.
+
 ### 2026-06-25 — Login Hydration Mismatch Fix
 
 - Fixed the unified `/login` page clock so it no longer formats `new Date()` during SSR, which was causing hydration mismatches between VPS-rendered HTML and the browser's local timezone.
