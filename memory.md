@@ -39,6 +39,12 @@ This file is the rolling project memory. Claude or any coding agent working in t
 - Updated the AI architecture, recommendations, demand-forecasting, local-development, deployment, testing, web-frontend, API-backend, and tech-stack docs to match the current runtime.
 - Added a dedicated AI feature inventory document in `docs/5_features/20_ai_engine/30_ai_feature_inventory.md` covering feature behavior, contracts, fallbacks, implementation details, and UI locations.
 
+### 2026-06-30 — Customer Session Pages Moved To Server-First Rendering
+
+- Added a public session-summary endpoint at `GET /api/sessions/:sessionId/public` so customer session pages can resolve canonical branch/table/session context without depending on hydrated local storage.
+- Refactored the customer session `menu` and `cart` routes into server components that fetch session context and menu categories before first paint, while preserving the existing client-side cart, recommendations, favorites, and chat behavior on hydration.
+- Added a small server-only fetch helper in the web app so high-traffic customer routes can opt into server-side data loading without changing the browser API helper contract.
+
 ### 2026-06-29 — Runtime Hardening For Favorites And Forecast Audit Logs
 
 - Hardened `GET/POST /api/menu/*favorite*` so non-customer requests now fail cleanly with auth errors instead of crashing with `userId` on `undefined`.

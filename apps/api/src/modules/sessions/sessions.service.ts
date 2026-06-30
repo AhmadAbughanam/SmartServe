@@ -147,6 +147,41 @@ export class SessionsService {
     return session;
   }
 
+  async getPublicSummary(sessionId: string) {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      select: {
+        id: true,
+        branchId: true,
+        guestCount: true,
+        status: true,
+        branch: {
+          select: {
+            name: true,
+          },
+        },
+        table: {
+          select: {
+            tableCode: true,
+          },
+        },
+      },
+    });
+
+    if (!session) {
+      throw new NotFoundException("Session not found");
+    }
+
+    return {
+      id: session.id,
+      branchId: session.branchId,
+      branchName: session.branch.name,
+      tableCode: session.table.tableCode,
+      guestCount: session.guestCount,
+      status: session.status,
+    };
+  }
+
   /**
    * End a dining session.
    *

@@ -44,6 +44,15 @@ export interface Session {
   table?: { tableCode: string };
 }
 
+export interface PublicSessionSummary {
+  id: string;
+  branchId: string;
+  branchName: string;
+  tableCode: string;
+  guestCount: number;
+  status: string;
+}
+
 export interface OrderItem {
   id: string;
   menuItemId: string;

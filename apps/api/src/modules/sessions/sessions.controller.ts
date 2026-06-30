@@ -71,6 +71,12 @@ export class SessionsController {
     return this.sessionsService.getById(sessionId, staff.tenantId);
   }
 
+  @Public()
+  @Get(":sessionId/public")
+  getPublicSessionSummary(@Param("sessionId") sessionId: string) {
+    return this.sessionsService.getPublicSummary(sessionId);
+  }
+
   @Post(":sessionId/end")
   @RequirePermissions("sessions:write")
   endSession(
